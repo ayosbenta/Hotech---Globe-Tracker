@@ -337,9 +337,51 @@ const LineChart = ({ labels, datasets }) => {
     );
 };
 
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = [];
+    for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+    }
+
+    return (
+        <nav className="pagination-container" aria-label="Table pagination">
+            <button
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="pagination-button"
+                aria-label="Previous page"
+            >
+                &laquo; Prev
+            </button>
+            {pageNumbers.map(number => (
+                <button
+                    key={number}
+                    onClick={() => onPageChange(number)}
+                    className={`pagination-button ${currentPage === number ? 'active' : ''}`}
+                    aria-current={currentPage === number ? 'page' : undefined}
+                >
+                    {number}
+                </button>
+            ))}
+            <button
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="pagination-button"
+                aria-label="Next page"
+            >
+                Next &raquo;
+            </button>
+        </nav>
+    );
+};
+
 const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) => {
     const { totalSalesThisMonth, totalCommissions, topAgent } = overviewPerformance;
     const [activeTab, setActiveTab] = useState('Monthly');
+    const [latestTransactionsCurrentPage, setLatestTransactionsCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     const visibleSubscribers = useMemo(() => {
         if (currentUser.role === 'agent') {
@@ -347,6 +389,34 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
         }
         return subscribers;
     }, [subscribers, currentUser]);
+    
+    const paginatedTransactionsData = useMemo(() => {
+        const sorted = [...subscribers]
+            .sort((a, b) => {
+                const dateA = a.dateOfApplication ? new Date(a.dateOfApplication).getTime() : 0;
+                const dateB = b.dateOfApplication ? new Date(b.dateOfApplication).getTime() : 0;
+                return dateB - dateA;
+            });
+
+        const totalPages = Math.ceil(sorted.length / itemsPerPage);
+        const startIndex = (latestTransactionsCurrentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        
+        const paginatedItems = sorted.slice(startIndex, endIndex);
+
+        return { items: paginatedItems, totalPages };
+    }, [subscribers, latestTransactionsCurrentPage]);
+
+    const statusBadgeStyle = (status) => ({
+        backgroundColor:
+            status === 'Installed' ? 'var(--accent-green)' :
+            status === 'Pending' ? 'var(--accent-yellow)' :
+            status === 'On The Way' ? 'var(--accent-blue)' :
+            status === 'Cancelled' ? 'var(--accent-red)' :
+            status === 'Reject' ? 'var(--accent-gray)' :
+            '#6c757d',
+    });
+
 
     // Agent-specific performance data for the cards
     const agentPerformance = useMemo(() => {
@@ -556,6 +626,45 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                     datasets={chartDatasets}
                 />
             </div>
+
+            {currentUser.role === 'admin' && (
+                <div className="card" style={{ marginTop: '2rem' }}>
+                    <h2>Latest Transactions</h2>
+                    <div className="table-responsive-wrapper" style={{marginTop: '1rem'}}>
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date of App.</th>
+                                    <th>Name</th>
+                                    <th>Agent</th>
+                                    <th>Plan</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedTransactionsData.items.map(sub => (
+                                    <tr key={sub.id}>
+                                        <td>{formatDate(sub.dateOfApplication)}</td>
+                                        <td>{sub.name}</td>
+                                        <td>{sub.agent}</td>
+                                        <td>{sub.plan}</td>
+                                        <td>
+                                            <span className="status-badge" style={statusBadgeStyle(sub.status)}>
+                                                {sub.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Pagination
+                        currentPage={latestTransactionsCurrentPage}
+                        totalPages={paginatedTransactionsData.totalPages}
+                        onPageChange={setLatestTransactionsCurrentPage}
+                    />
+                </div>
+            )}
         </div>
     );
 };
