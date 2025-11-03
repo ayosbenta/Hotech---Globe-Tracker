@@ -968,7 +968,15 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
 
 
 const App = () => {
-    const [currentUser, setCurrentUser] = useState(null);
+    const [currentUser, setCurrentUser] = useState(() => {
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            return savedUser ? JSON.parse(savedUser) : null;
+        } catch (error) {
+            console.error("Could not parse user from localStorage", error);
+            return null;
+        }
+    });
     const [activeMenu, setActiveMenu] = useState('Overview');
     const [subscribers, setSubscribers] = useState([]);
     const [expenses, setExpenses] = useState([]);
@@ -997,6 +1005,11 @@ const App = () => {
     }, [isSidebarOpen]);
     
     useEffect(() => {
+        if (!currentUser) {
+            setIsLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
             setIsLoading(true);
             setError(null);
@@ -1043,7 +1056,7 @@ const App = () => {
         };
 
         fetchData();
-    }, []);
+    }, [currentUser]);
     
     const saveDataToSheet = async (dataToSave, sheetName) => {
         setIsSaving(true);
@@ -1154,11 +1167,18 @@ const App = () => {
 
 
     const handleLogin = (user) => {
+        try {
+            localStorage.setItem('currentUser', JSON.stringify(user));
+        } catch (error) {
+            console.error("Failed to save user to localStorage", error);
+            setError("Could not save session. You might be logged out on refresh.");
+        }
         setCurrentUser(user);
         setActiveMenu('Overview');
     };
 
     const handleLogout = () => {
+        localStorage.removeItem('currentUser');
         setCurrentUser(null);
     };
 
