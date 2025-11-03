@@ -381,6 +381,7 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
     const { totalSalesThisMonth, totalCommissions, topAgent } = overviewPerformance;
     const [activeTab, setActiveTab] = useState('Monthly');
     const [latestTransactionsCurrentPage, setLatestTransactionsCurrentPage] = useState(1);
+    const [agentTransactionsCurrentPage, setAgentTransactionsCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
     const visibleSubscribers = useMemo(() => {
@@ -406,6 +407,23 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
 
         return { items: paginatedItems, totalPages };
     }, [subscribers, latestTransactionsCurrentPage]);
+    
+    const paginatedAgentTransactionsData = useMemo(() => {
+        const sorted = [...visibleSubscribers]
+            .sort((a, b) => {
+                const dateA = a.dateOfApplication ? new Date(a.dateOfApplication).getTime() : 0;
+                const dateB = b.dateOfApplication ? new Date(b.dateOfApplication).getTime() : 0;
+                return dateB - dateA;
+            });
+
+        const totalPages = Math.ceil(sorted.length / itemsPerPage);
+        const startIndex = (agentTransactionsCurrentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        
+        const paginatedItems = sorted.slice(startIndex, endIndex);
+
+        return { items: paginatedItems, totalPages };
+    }, [visibleSubscribers, agentTransactionsCurrentPage]);
 
     const statusBadgeStyle = (status) => ({
         backgroundColor:
@@ -670,6 +688,51 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                         currentPage={latestTransactionsCurrentPage}
                         totalPages={paginatedTransactionsData.totalPages}
                         onPageChange={setLatestTransactionsCurrentPage}
+                    />
+                </div>
+            )}
+
+            {currentUser.role === 'agent' && (
+                <div className="card" style={{ marginTop: '2rem' }}>
+                    <h2>Latest Transactions</h2>
+                    <div className="table-responsive-wrapper" style={{marginTop: '1rem'}}>
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date of App.</th>
+                                    <th>Name</th>
+                                    <th>Plan</th>
+                                    <th>Activation Date</th>
+                                    <th>Status</th>
+                                    <th>Payout Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedAgentTransactionsData.items.map(sub => (
+                                    <tr key={sub.id}>
+                                        <td>{formatDate(sub.dateOfApplication)}</td>
+                                        <td>{sub.name}</td>
+                                        <td>{sub.plan}</td>
+                                        <td>{formatDate(sub.activationDate)}</td>
+                                        <td>
+                                            <span className="status-badge" style={statusBadgeStyle(sub.status)}>
+                                                {sub.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="status-badge" style={payoutStatusBadgeStyle(sub.payoutStatus || 'Pending')}>
+                                                {sub.payoutStatus || 'Pending'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Pagination
+                        currentPage={agentTransactionsCurrentPage}
+                        totalPages={paginatedAgentTransactionsData.totalPages}
+                        onPageChange={setAgentTransactionsCurrentPage}
                     />
                 </div>
             )}
