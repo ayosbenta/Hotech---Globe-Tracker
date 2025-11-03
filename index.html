@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Globe Telecom - Sales Tracker</title>
+  <style>
+    :root {
+      --globe-blue: #0073b4;
+      --globe-blue-dark: #005a8d;
+      --globe-text-primary: #333;
+      --globe-text-secondary: #666;
+      --globe-bg-light: #f4f7fa;
+      --globe-bg-white: #ffffff;
+      --globe-border-color: #dee2e6;
+      --globe-accent-green: #28a745;
+      --globe-accent-yellow: #ffc107;
+      --globe-accent-red: #dc3545;
+      --globe-accent-blue: #17a2b8;
+      --globe-accent-gray: #6c757d;
+      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--globe-bg-light);
+      color: var(--globe-text-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-smoothing: grayscale;
+    }
+    #root {
+      display: flex;
+      height: 100vh;
+    }
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .content-area {
+      flex-grow: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+    h1, h2, h3 {
+      color: var(--globe-blue-dark);
+      margin-bottom: 1rem;
+    }
+    /* Utility classes */
+    .card {
+      background-color: var(--globe-bg-white);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--globe-border-color);
+    }
+
+    /* Form controls */
+    .form-control {
+        padding: 0.75rem;
+        font-size: 1rem;
+        border: 1px solid var(--globe-border-color);
+        border-radius: 6px;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    /* Button styles */
+    .btn {
+        padding: 0.6rem 1.2rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+    }
+    .btn-primary {
+        background-color: var(--globe-blue);
+        color: white;
+    }
+    .btn-primary:hover {
+        background-color: var(--globe-blue-dark);
+    }
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+    .btn-icon {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--globe-text-secondary);
+        padding: 4px;
+        border-radius: 50%;
+    }
+    .btn-icon:hover {
+        background-color: #e9ecef;
+        color: var(--globe-blue);
+    }
+    .btn-icon-danger:hover {
+        color: var(--globe-accent-red);
+    }
+    .btn-block {
+      width: 100%;
+      padding-top: 0.75rem;
+      padding-bottom: 0.75rem;
+      font-size: 1rem;
+    }
+    
+    .loading-container, .error-container {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.5rem;
+        color: var(--globe-text-secondary);
+    }
+    .error-container {
+      color: var(--globe-accent-red);
+    }
+    .toast-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 1rem;
+      border: 1px solid #f5c6cb;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Login Screen Styles */
+    .login-container {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: var(--globe-bg-light);
+    }
+    .login-box {
+        background-color: var(--globe-bg-white);
+        padding: 2.5rem;
+        border-radius: 8px;
+        box-shadow: var(--shadow-md);
+        width: 100%;
+        max-width: 400px;
+    }
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 2rem;
+    }
+    .login-header .logo-text {
+      color: var(--globe-blue);
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+    .login-error {
+      color: var(--globe-accent-red);
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .modal-content {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: var(--shadow-md);
+    }
+    .modal-content h2 {
+        margin-top: 0;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--globe-text-secondary);
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 1rem;
+        border: 1px solid var(--globe-border-color);
+        border-radius: 6px;
+        font-family: inherit;
+    }
+    .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+    .modal-actions {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    /* Report Styles */
+    .report-filters {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    .report-filters .form-group {
+        min-width: 180px;
+    }
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .report-table th, .report-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--globe-border-color);
+    }
+    .report-table th {
+        background-color: #f8f9fa;
+        color: var(--globe-text-secondary);
+        font-weight: 600;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+    }
+    .stat-card {
+        background-color: var(--globe-bg-light);
+        border: 1px solid var(--globe-border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--globe-blue);
+    }
+    .stat-label {
+        font-size: 1rem;
+        color: var(--globe-text-secondary);
+    }
+
+    /* Print Styles */
+    @media print {
+        body {
+            background-color: white;
+        }
+        .no-print {
+            display: none !important;
+        }
+        #root {
+            display: block;
+            height: auto;
+        }
+        .main-content, .content-area {
+            overflow: visible;
+            padding: 0;
+        }
+        .card {
+            box-shadow: none;
+            border: 1px solid #ccc;
+        }
+    }
+
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
