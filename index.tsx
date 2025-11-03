@@ -82,6 +82,7 @@ const ICONS = {
     payout: "M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z",
     accounting: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z",
     logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
+    menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
 };
 
 // --- COMPONENTS ---
@@ -147,7 +148,7 @@ const Login = ({ onLogin, agents }) => {
     );
 };
 
-const Sidebar = ({ activeMenu, setActiveMenu, userRole }) => {
+const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
     const menus = [
         { name: 'Overview', icon: 'overview', roles: ['admin', 'agent'] },
         { name: 'Subscribers', icon: 'subscribers', roles: ['admin', 'agent'] },
@@ -195,30 +196,38 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole }) => {
         marginBottom: '0.5rem',
     });
 
+    const handleMenuClick = (menuName) => {
+        setActiveMenu(menuName);
+        onClose();
+    };
+
     return (
-        <nav style={sidebarStyle} className="no-print">
-            <div style={logoStyle}>
-                <span style={logoTextStyle}>Globe</span>
-                <span style={{ color: 'var(--globe-text-primary)', fontSize: '1.5rem', fontWeight: '300' }}>Tracker</span>
-            </div>
-            {menus.filter(menu => menu.roles.includes(userRole)).map(menu => (
-                <div
-                    key={menu.name}
-                    style={menuItemStyle(activeMenu === menu.name)}
-                    onClick={() => setActiveMenu(menu.name)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={menu.name}
-                >
-                    <Icon path={ICONS[menu.icon]} />
-                    <span>{menu.name}</span>
+        <>
+            {isOpen && <div className="sidebar-backdrop" onClick={onClose}></div>}
+            <nav style={sidebarStyle} className={`sidebar no-print ${isOpen ? 'sidebar-open' : ''}`}>
+                <div style={logoStyle}>
+                    <span style={logoTextStyle}>Globe</span>
+                    <span style={{ color: 'var(--globe-text-primary)', fontSize: '1.5rem', fontWeight: '300' }}>Tracker</span>
                 </div>
-            ))}
-        </nav>
+                {menus.filter(menu => menu.roles.includes(userRole)).map(menu => (
+                    <div
+                        key={menu.name}
+                        style={menuItemStyle(activeMenu === menu.name)}
+                        onClick={() => handleMenuClick(menu.name)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={menu.name}
+                    >
+                        <Icon path={ICONS[menu.icon]} />
+                        <span>{menu.name}</span>
+                    </div>
+                ))}
+            </nav>
+        </>
     );
 };
 
-const Header = ({ currentUser, onLogout, isSaving }) => {
+const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
     const headerStyle: React.CSSProperties = {
         height: '70px',
         backgroundColor: 'var(--globe-bg-white)',
@@ -256,8 +265,13 @@ const Header = ({ currentUser, onLogout, isSaving }) => {
 
     return (
         <header style={headerStyle} className="no-print">
-            <div style={savingIndicatorStyle}>
-                Saving...
+            <div className="header-start">
+                 <button className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
+                    <Icon path={ICONS.menu} />
+                </button>
+                <div style={savingIndicatorStyle}>
+                    Saving...
+                </div>
             </div>
             <div style={userContainerStyle}>
                 <span>Welcome, <strong>{currentUser.name}</strong></span>
@@ -513,7 +527,7 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h1>Subscribers</h1>
                 <button className="btn btn-primary" onClick={() => openModal()}>New Subscriber</button>
             </div>
@@ -741,7 +755,7 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h1>Payout Reports</h1>
                 <button className="btn btn-secondary no-print" onClick={handlePrint}>Print Report</button>
             </div>
@@ -1019,7 +1033,7 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
             </div>
 
             <div className="card" style={{ marginTop: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h2>Expenses Log</h2>
                     <button className="btn btn-primary no-print" onClick={() => openModal()}>Add Expense</button>
                 </div>
@@ -1081,7 +1095,18 @@ const App = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+    useEffect(() => {
+        if (isSidebarOpen) {
+            document.body.classList.add('body-no-scroll');
+        } else {
+            document.body.classList.remove('body-no-scroll');
+        }
+    }, [isSidebarOpen]);
+    
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
@@ -1276,9 +1301,9 @@ const App = () => {
 
     return (
         <>
-            <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} userRole={currentUser.role} />
+            <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} userRole={currentUser.role} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
             <main className="main-content">
-                <Header currentUser={currentUser} onLogout={handleLogout} isSaving={isSaving} />
+                <Header currentUser={currentUser} onLogout={handleLogout} isSaving={isSaving} onToggleSidebar={toggleSidebar} />
                 <div className="content-area">
                     {error && <div className="toast-error">{error}</div>}
                     {renderContent()}
