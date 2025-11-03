@@ -69,6 +69,14 @@ const normalizeDateToYYYYMMDD = (sheetDate) => {
     return `${year}-${month}-${day}`;
 };
 
+const payoutStatusBadgeStyle = (status) => ({
+    backgroundColor: 
+        status === 'Completed' ? 'var(--accent-green)' :
+        status === 'Pending' ? 'var(--accent-yellow)' :
+        status === 'On Request' ? 'var(--accent-blue)' :
+        status === 'Rejected' ? 'var(--accent-red)' :
+        '#6c757d',
+});
 
 // --- SVG ICONS ---
 const Icon = ({ path, className = '' }) => (
@@ -154,6 +162,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
     const menus = [
         { name: 'Overview', icon: 'overview', roles: ['admin', 'agent'] },
         { name: 'Subscribers', icon: 'subscribers', roles: ['admin', 'agent'] },
+        { name: 'My Performance', icon: 'performance', roles: ['agent'] },
         { name: 'Agent Performance', icon: 'performance', roles: ['admin'] },
         { name: 'Payout Reports', icon: 'payout', roles: ['admin', 'agent'] },
         { name: 'Accounting & Financial', icon: 'accounting', roles: ['admin'] },
@@ -346,7 +355,7 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
 
-        // For Sales & Commissions (aligns with Payouts)
+        // For "Total Installed" this month
         const installedThisMonth = visibleSubscribers.filter(sub => {
             if (!sub.activationDate) return false;
             const activationDate = new Date(sub.activationDate);
@@ -355,9 +364,8 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                    activationDate.getMonth() === currentMonth;
         });
         const totalSales = installedThisMonth.length;
-        const totalCommissions = installedThisMonth.reduce((sum, sub) => sum + calculateCommission(sub.plan), 0);
 
-        // For Conversion Rate (aligns with Agent Performance page)
+        // For "Monthly Conversion Rate"
         const applicationsThisMonth = visibleSubscribers.filter(sub => {
             if (!sub.dateOfApplication) return false;
             const appDate = new Date(sub.dateOfApplication);
@@ -367,7 +375,18 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
         const totalApplications = applicationsThisMonth.length;
         const conversionRate = totalApplications > 0 ? (installedFromThisMonthApps / totalApplications) * 100 : 0;
 
-        return { totalSales, totalCommissions, conversionRate };
+        // For Payout stats (all-time for agent, but only for installed subs)
+        const installedSubscribers = visibleSubscribers.filter(sub => sub.status === 'Installed');
+        const pendingPayouts = installedSubscribers.filter(sub => (sub.payoutStatus || 'Pending') === 'Pending').length;
+        const onRequestPayouts = installedSubscribers.filter(sub => sub.payoutStatus === 'On Request').length;
+        
+        const completedPayoutsData = installedSubscribers.filter(sub => sub.payoutStatus === 'Completed');
+        const completedPayouts = completedPayoutsData.length;
+        
+        const grossIncome = completedPayoutsData.reduce((sum, sub) => sum + getPlanPrice(sub.plan), 0);
+        const totalCompletedCommission = completedPayoutsData.reduce((sum, sub) => sum + calculateCommission(sub.plan), 0);
+
+        return { totalSales, conversionRate, pendingPayouts, onRequestPayouts, completedPayouts, grossIncome, totalCompletedCommission };
     }, [visibleSubscribers, currentUser.role]);
 
     const chartData = useMemo(() => {
@@ -477,15 +496,31 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                     </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">{agentPerformance.totalSales}</div>
-                        <div className="stat-label">Your Sales This Month</div>
+                        <div className="stat-label">Total Installed</div>
                     </div>
                     <div className="overview-stat-card">
-                        <div className="stat-value">₱{agentPerformance.totalCommissions.toLocaleString()}</div>
-                        <div className="stat-label">Your Commissions This Month</div>
+                        <div className="stat-value">{agentPerformance.pendingPayouts}</div>
+                        <div className="stat-label">Pending Payout</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{agentPerformance.onRequestPayouts}</div>
+                        <div className="stat-label">On Request Payout</div>
+                    </div>
+                     <div className="overview-stat-card">
+                        <div className="stat-value">{agentPerformance.completedPayouts}</div>
+                        <div className="stat-label">Total Completed Payout</div>
                     </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">{agentPerformance.conversionRate.toFixed(1)}%</div>
                         <div className="stat-label">Monthly Conversion Rate</div>
+                    </div>
+                     <div className="overview-stat-card">
+                        <div className="stat-value">₱{agentPerformance.grossIncome.toLocaleString()}</div>
+                        <div className="stat-label">Gross Income (Completed)</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">₱{agentPerformance.totalCompletedCommission.toLocaleString()}</div>
+                        <div className="stat-label">Total Commission (Completed)</div>
                     </div>
                 </div>
             ) : (
@@ -762,6 +797,88 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
     );
 };
 
+const MyPerformance = ({ subscribers, currentUser }) => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+    const [selectedYear, setSelectedYear] = useState(currentYear);
+
+    const performanceData = useMemo(() => {
+        const agentSubs = subscribers.filter(sub => {
+            if (!sub.dateOfApplication || sub.agent !== currentUser.name) return false;
+            const appDate = new Date(sub.dateOfApplication);
+            return appDate.getFullYear() === selectedYear && (appDate.getMonth() + 1) === selectedMonth;
+        });
+
+        const totalApplications = agentSubs.length;
+        const installedSales = agentSubs.filter(sub => sub.status === 'Installed').length;
+        const pending = agentSubs.filter(sub => ['Pending', 'On The Way'].includes(sub.status)).length;
+        const cancelledOrRejected = agentSubs.filter(sub => ['Cancelled', 'Reject'].includes(sub.status)).length;
+        
+        const totalCommission = agentSubs
+            .filter(sub => sub.status === 'Installed')
+            .reduce((sum, sub) => sum + calculateCommission(sub.plan), 0);
+        
+        const conversionRate = totalApplications > 0 ? (installedSales / totalApplications) * 100 : 0;
+
+        return {
+            totalApplications,
+            installedSales,
+            pending,
+            cancelledOrRejected,
+            conversionRate,
+            totalCommission,
+        };
+    }, [subscribers, currentUser.name, selectedMonth, selectedYear]);
+
+    return (
+        <div>
+            <h1>My Performance</h1>
+             <div className="card">
+                <div className="report-filters">
+                    <div className="form-group">
+                        <label>Month</label>
+                        <select className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
+                            {Array.from({length: 12}, (_, i) => <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>)}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Year</label>
+                        <input className="form-control" type="number" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} />
+                    </div>
+                </div>
+            </div>
+            <div className="card-grid" style={{ marginTop: '2rem' }}>
+                <div className="stat-card">
+                    <div className="stat-value">{performanceData.installedSales}</div>
+                    <div className="stat-label">Installed Sales</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-value">{performanceData.totalApplications}</div>
+                    <div className="stat-label">Total Applications</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-value">{performanceData.conversionRate.toFixed(1)}%</div>
+                    <div className="stat-label">Conversion Rate</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-value">{performanceData.pending}</div>
+                    <div className="stat-label">Pending</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-value">{performanceData.cancelledOrRejected}</div>
+                    <div className="stat-label">Cancelled / Rejected</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-value">₱{performanceData.totalCommission.toLocaleString()}</div>
+                    <div className="stat-label">Commission Earned</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AgentPerformance = ({ subscribers, agents }) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
@@ -882,13 +999,58 @@ const AgentPerformance = ({ subscribers, agents }) => {
     );
 };
 
-const PayoutReports = ({ subscribers, agents, currentUser }) => {
+const RejectionReasonModal = ({ isOpen, onClose, onSave, initialReason }) => {
+    const [reason, setReason] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setReason(initialReason || '');
+        }
+    }, [isOpen, initialReason]);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave(reason);
+    };
+
+    return (
+        <div className="modal-backdrop">
+            <div className="modal-content">
+                <h2>Reason for Rejection</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label htmlFor="rejectionReason">Please provide a reason for rejecting this payout.</label>
+                        <textarea
+                            id="rejectionReason"
+                            className="form-control"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            required
+                            rows={4}
+                            autoFocus
+                        />
+                    </div>
+                    <div className="modal-actions">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn btn-primary">Save Reason</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [selectedAgent, setSelectedAgent] = useState(currentUser.role === 'admin' ? 'All' : currentUser.name);
+    const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+    const [editingSubscriberForRejection, setEditingSubscriberForRejection] = useState(null);
 
     const reportData = useMemo(() => {
         return subscribers.filter(sub => {
@@ -910,6 +1072,36 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
 
     const handlePrint = () => {
         window.print();
+    };
+    
+    const handleStatusChange = (subscriber, newStatus) => {
+        if (newStatus === 'Rejected') {
+            setEditingSubscriberForRejection(subscriber);
+            setIsRejectionModalOpen(true);
+        } else {
+            const updatedSubscriber = {
+                ...subscriber,
+                payoutStatus: newStatus,
+                payoutRejectionReason: '', // Clear reason if not rejected
+            };
+            onSaveSubscriber(updatedSubscriber);
+        }
+    };
+    
+    const handleSaveRejection = (reason) => {
+        if (!editingSubscriberForRejection) return;
+        const updatedSubscriber = {
+            ...editingSubscriberForRejection,
+            payoutStatus: 'Rejected',
+            payoutRejectionReason: reason,
+        };
+        onSaveSubscriber(updatedSubscriber);
+        closeRejectionModal();
+    };
+
+    const closeRejectionModal = () => {
+        setIsRejectionModalOpen(false);
+        setEditingSubscriberForRejection(null);
     };
 
     return (
@@ -961,6 +1153,8 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Commission</th>
+                                <th>Payout Status</th>
+                                <th>Rejection Reason</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -971,16 +1165,42 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
                                     <td>{item.plan}</td>
                                     <td>{formatDate(item.activationDate)}</td>
                                     <td>₱{item.commission.toLocaleString()}</td>
+                                    <td>
+                                        {currentUser.role === 'admin' ? (
+                                            <select
+                                                className="form-control table-select"
+                                                value={item.payoutStatus || 'Pending'}
+                                                onChange={(e) => handleStatusChange(item, e.target.value)}
+                                                aria-label={`Payout status for ${item.name}`}
+                                            >
+                                                <option value="Pending">Pending</option>
+                                                <option value="On Request">On Request</option>
+                                                <option value="Completed">Completed</option>
+                                                <option value="Rejected">Rejected</option>
+                                            </select>
+                                        ) : (
+                                            <span className="status-badge" style={payoutStatusBadgeStyle(item.payoutStatus || 'Pending')}>
+                                                {item.payoutStatus || 'Pending'}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td>{item.payoutRejectionReason}</td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={5} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
+                                    <td colSpan={7} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+            <RejectionReasonModal
+                isOpen={isRejectionModalOpen}
+                onClose={closeRejectionModal}
+                onSave={handleSaveRejection}
+                initialReason={editingSubscriberForRejection?.payoutRejectionReason || ''}
+            />
         </div>
     );
 };
@@ -1311,7 +1531,9 @@ const App = () => {
                     activationDate: normalizeDateToYYYYMMDD(item.activationDate),
                     agent: item.agent || '',
                     status: item.status || 'Pending',
-                    reason: item.reason || ''
+                    reason: item.reason || '',
+                    payoutStatus: item.payoutStatus || 'Pending',
+                    payoutRejectionReason: item.payoutRejectionReason || ''
                 }));
                 setSubscribers(processedSubscribers);
 
@@ -1466,8 +1688,9 @@ const App = () => {
         switch (activeMenu) {
             case 'Overview': return <Overview subscribers={subscribers} expenses={expenses} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
             case 'Subscribers': return <Subscribers subscribers={subscribers} onSave={handleSaveSubscriber} onDelete={handleDeleteSubscriber} agents={agents} plans={residentialPlans} currentUser={currentUser} />;
+            case 'My Performance': return <MyPerformance subscribers={subscribers} currentUser={currentUser} />;
             case 'Agent Performance': return <AgentPerformance subscribers={subscribers} agents={agents} />;
-            case 'Payout Reports': return <PayoutReports subscribers={subscribers} agents={agents} currentUser={currentUser} />;
+            case 'Payout Reports': return <PayoutReports subscribers={subscribers} agents={agents} currentUser={currentUser} onSaveSubscriber={handleSaveSubscriber} />;
             case 'Accounting & Financial': return <AccountingFinancial subscribers={subscribers} expenses={expenses} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} />;
             default: return <Overview subscribers={subscribers} expenses={expenses} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
         }
@@ -1477,7 +1700,7 @@ const App = () => {
         if (!currentUser) return;
         const allowedMenusForRole = {
             admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Accounting & Financial'],
-            agent: ['Overview', 'Subscribers', 'Payout Reports'],
+            agent: ['Overview', 'Subscribers', 'My Performance', 'Payout Reports'],
         };
         if (!allowedMenusForRole[currentUser.role].includes(activeMenu)) {
             setActiveMenu('Overview');
