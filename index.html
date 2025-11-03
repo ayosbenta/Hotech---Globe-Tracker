@@ -440,6 +440,100 @@
       margin-top: 0.25rem;
     }
     
+    /* Chart Tabs */
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
+    }
+    .tabs button {
+        background: none;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        border-bottom: 3px solid transparent;
+        transform: translateY(1px);
+        transition: color 0.2s, border-color 0.2s;
+    }
+    .tabs button:hover {
+        color: var(--primary-brand);
+    }
+    .tabs button.active {
+        color: var(--primary-brand);
+        border-bottom-color: var(--primary-brand);
+        font-weight: 600;
+    }
+    
+    /* Line Chart Styles */
+    .line-chart-container {
+      position: relative;
+      width: 100%;
+      height: 350px;
+    }
+    .line-chart-svg .axis-label,
+    .line-chart-svg .axis {
+        font-size: 12px;
+        fill: var(--text-secondary);
+    }
+    .line-chart-svg .grid-line {
+        stroke: var(--border-color);
+        stroke-dasharray: 2, 2;
+    }
+    .line-chart-svg .data-line {
+        fill: none;
+        stroke-width: 2.5px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+    .line-chart-svg .data-point-group {
+        cursor: pointer;
+    }
+    .line-chart-svg .data-point {
+        r: 4;
+        transition: r 0.2s ease-out;
+    }
+    .line-chart-svg .data-point-group:hover .data-point {
+        r: 6;
+    }
+    .chart-tooltip {
+        position: absolute;
+        background-color: rgba(13, 26, 46, 0.9);
+        color: white;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        pointer-events: none;
+        transform: translate(-50%, -120%);
+        opacity: 0;
+        transition: opacity 0.2s ease, top 0.1s, left 0.1s;
+        white-space: nowrap;
+        box-shadow: var(--shadow-md);
+        z-index: 10;
+    }
+    .chart-tooltip.visible {
+        opacity: 1;
+    }
+    .tooltip-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .tooltip-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .tooltip-item:not(:last-child) {
+        margin-bottom: 0.25rem;
+    }
+    .tooltip-color-box {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+    }
+
     /* Responsive Additions */
     .sidebar-toggle {
         display: none;

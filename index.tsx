@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // --- CONFIGURATION ---
@@ -72,7 +72,7 @@ const normalizeDateToYYYYMMDD = (sheetDate) => {
 
 // --- SVG ICONS ---
 const Icon = ({ path, className = '' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className} style={{ width: '1.25rem', height: '1.25rem' }}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="http://www.w3.org/2000/svg" fill="currentColor" className={className} style={{ width: '1.25rem', height: '1.25rem' }}>
         <path d={path} />
     </svg>
 );
@@ -212,8 +212,125 @@ const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
     );
 };
 
-const Overview = ({ subscribers, overviewPerformance, currentUser }) => {
+const LineChart = ({ labels, datasets }) => {
+    const containerRef = useRef(null);
+    const [tooltip, setTooltip] = useState(null);
+    const [containerWidth, setContainerWidth] = useState(0);
+
+    useEffect(() => {
+        const observer = new ResizeObserver(entries => {
+            if (entries[0]) {
+                setContainerWidth(entries[0].contentRect.width);
+            }
+        });
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+        return () => observer.disconnect();
+    }, []);
+
+    if (!labels || labels.length === 0) return <p>No data to display for this period.</p>;
+
+    const height = 350;
+    const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+    const chartWidth = containerWidth - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    const allDataPoints = datasets.flatMap(ds => ds.data);
+    const maxValue = Math.max(0, ...allDataPoints);
+    const yAxisMax = maxValue === 0 ? 1000 : Math.ceil(maxValue / 1000) * 1000;
+
+    const getX = (index) => padding.left + (index / (labels.length - 1)) * chartWidth;
+    const getY = (value) => padding.top + chartHeight - (value / yAxisMax) * chartHeight;
+
+    const yAxisLabels = Array.from({ length: 6 }, (_, i) => {
+        const value = (yAxisMax / 5) * i;
+        return { value, y: getY(value) };
+    });
+
+    const handleMouseOver = (e, index) => {
+        const x = getX(index);
+        const tooltipData = {
+            label: labels[index],
+            datasets: datasets.map(ds => ({
+                name: ds.name,
+                value: ds.data[index],
+                color: ds.color
+            })),
+            x: x,
+            y: e.clientY - containerRef.current.getBoundingClientRect().top
+        };
+        setTooltip(tooltipData);
+    };
+
+    const handleMouseOut = () => {
+        setTooltip(null);
+    };
+
+    return (
+        <div className="line-chart-container" ref={containerRef}>
+            {containerWidth > 0 && (
+                 <svg className="line-chart-svg" width="100%" height={height}>
+                    <g className="y-axis">
+                        {yAxisLabels.map(({ value, y }) => (
+                            <g key={value}>
+                                <text x={padding.left - 10} y={y} dy="0.32em" textAnchor="end" className="axis-label">
+                                    {value / 1000}k
+                                </text>
+                                <line x1={padding.left} x2={containerWidth - padding.right} y1={y} y2={y} className="grid-line" />
+                            </g>
+                        ))}
+                    </g>
+
+                    <g className="x-axis">
+                        {labels.map((label, index) => {
+                             const showLabel = labels.length <= 12 || index % Math.ceil(labels.length / 12) === 0;
+                            return showLabel && (
+                                <text key={label} x={getX(index)} y={height - padding.bottom + 20} textAnchor="middle" className="axis-label">
+                                    {label}
+                                </text>
+                            )
+                        })}
+                    </g>
+
+                    {datasets.map(ds => (
+                        <path
+                            key={ds.name}
+                            className="data-line"
+                            stroke={ds.color}
+                            d={ds.data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${getX(index)} ${getY(point)}`).join(' ')}
+                        />
+                    ))}
+
+                     {labels.map((_, index) => (
+                        <g key={index} className="data-point-group" onMouseOver={(e) => handleMouseOver(e, index)} onMouseOut={handleMouseOut}>
+                             <rect x={getX(index) - (chartWidth / (labels.length - 1) / 2)} y={padding.top} width={chartWidth / (labels.length - 1)} height={chartHeight} fill="transparent" />
+                            {datasets.map(ds => (
+                                <circle key={ds.name} cx={getX(index)} cy={getY(ds.data[index])} fill={ds.color} className="data-point" />
+                            ))}
+                        </g>
+                    ))}
+                </svg>
+            )}
+           
+            {tooltip && (
+                <div className="chart-tooltip visible" style={{ left: tooltip.x, top: tooltip.y }}>
+                    <div className="tooltip-title">{tooltip.label}</div>
+                    {tooltip.datasets.map(ds => (
+                        <div key={ds.name} className="tooltip-item">
+                            <span className="tooltip-color-box" style={{ backgroundColor: ds.color }}></span>
+                            <span>{ds.name}: ₱{ds.value.toLocaleString()}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) => {
     const { totalSalesThisMonth, totalCommissions, topAgent } = overviewPerformance;
+    const [activeTab, setActiveTab] = useState('Monthly');
 
     const visibleSubscribers = useMemo(() => {
         if (currentUser.role === 'agent') {
@@ -221,6 +338,90 @@ const Overview = ({ subscribers, overviewPerformance, currentUser }) => {
         }
         return subscribers;
     }, [subscribers, currentUser]);
+
+    const chartData = useMemo(() => {
+        const now = new Date();
+        const data = { labels: [], commissions: [], expenses: [] };
+
+        const parseDate = (dateStr) => {
+            if (!dateStr) return null;
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
+        if (activeTab === 'Monthly') {
+            for (let i = 11; i >= 0; i--) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const month = date.getMonth();
+                const year = date.getFullYear();
+                
+                const monthlyCommissions = subscribers
+                    .filter(s => {
+                        const actDate = parseDate(s.activationDate);
+                        return s.status === 'Installed' && actDate && actDate.getMonth() === month && actDate.getFullYear() === year;
+                    })
+                    .reduce((sum, s) => sum + calculateCommission(s.plan), 0);
+                
+                const monthlyExpenses = expenses
+                    .filter(e => {
+                        const expDate = parseDate(e.date);
+                        return expDate && expDate.getMonth() === month && expDate.getFullYear() === year;
+                    })
+                    .reduce((sum, e) => sum + e.amount, 0);
+
+                data.labels.push(date.toLocaleString('default', { month: 'short' }));
+                data.commissions.push(monthlyCommissions);
+                data.expenses.push(monthlyExpenses);
+            }
+        } else if (activeTab === 'Weekly') {
+            for (let i = 11; i >= 0; i--) {
+                const weekStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() - (i * 7));
+                weekStartDate.setHours(0, 0, 0, 0);
+                const weekEndDate = new Date(weekStartDate);
+                weekEndDate.setDate(weekEndDate.getDate() + 6);
+                weekEndDate.setHours(23, 59, 59, 999);
+
+                const weeklyCommissions = subscribers
+                    .filter(s => {
+                        const actDate = parseDate(s.activationDate);
+                        return s.status === 'Installed' && actDate && actDate >= weekStartDate && actDate <= weekEndDate;
+                    })
+                    .reduce((sum, s) => sum + calculateCommission(s.plan), 0);
+
+                const weeklyExpenses = expenses
+                     .filter(e => {
+                        const expDate = parseDate(e.date);
+                        return expDate && expDate >= weekStartDate && expDate <= weekEndDate;
+                    })
+                    .reduce((sum, e) => sum + e.amount, 0);
+                
+                data.labels.push(`${weekStartDate.getMonth()+1}/${weekStartDate.getDate()}`);
+                data.commissions.push(weeklyCommissions);
+                data.expenses.push(weeklyExpenses);
+            }
+
+        } else if (activeTab === 'Daily') {
+             for (let i = 29; i >= 0; i--) {
+                const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+                date.setHours(0,0,0,0);
+                const yyyymmdd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                
+                const dailyCommissions = subscribers
+                    .filter(s => s.status === 'Installed' && s.activationDate === yyyymmdd)
+                    .reduce((sum, s) => sum + calculateCommission(s.plan), 0);
+                
+                const dailyExpenses = expenses
+                    .filter(e => e.date === yyyymmdd)
+                    .reduce((sum, e) => sum + e.amount, 0);
+
+                data.labels.push(`${date.getMonth()+1}/${date.getDate()}`);
+                data.commissions.push(dailyCommissions);
+                data.expenses.push(dailyExpenses);
+            }
+        }
+
+        return data;
+    }, [subscribers, expenses, activeTab]);
     
     return (
         <div>
@@ -242,6 +443,22 @@ const Overview = ({ subscribers, overviewPerformance, currentUser }) => {
                     <div className="stat-value">{topAgent.name}</div>
                     <div className="stat-label">Top Performing Agent</div>
                 </div>
+            </div>
+
+            <div className="card" style={{ marginTop: '2rem' }}>
+                <h2>Commission vs. Expenses</h2>
+                 <div className="tabs">
+                    <button className={activeTab === 'Daily' ? 'active' : ''} onClick={() => setActiveTab('Daily')}>Daily</button>
+                    <button className={activeTab === 'Weekly' ? 'active' : ''} onClick={() => setActiveTab('Weekly')}>Weekly</button>
+                    <button className={activeTab === 'Monthly' ? 'active' : ''} onClick={() => setActiveTab('Monthly')}>Monthly</button>
+                </div>
+                <LineChart
+                    labels={chartData.labels}
+                    datasets={[
+                        { name: 'Commissions', data: chartData.commissions, color: 'var(--primary-brand)' },
+                        { name: 'Expenses', data: chartData.expenses, color: 'var(--accent-red)' }
+                    ]}
+                />
             </div>
         </div>
     );
@@ -1139,7 +1356,7 @@ const App = () => {
     };
 
     const overviewPerformance = useMemo(() => {
-        const currentMonth = new Date().getMonth() + 1;
+        const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
 
         const monthlySubscribers = subscribers.filter(sub => {
@@ -1147,7 +1364,7 @@ const App = () => {
             const activationDate = new Date(sub.activationDate);
             return sub.status === 'Installed' &&
                 activationDate.getFullYear() === currentYear &&
-                (activationDate.getMonth() + 1) === currentMonth;
+                activationDate.getMonth() === currentMonth;
         });
 
         const totalSalesThisMonth = monthlySubscribers.length;
@@ -1186,12 +1403,12 @@ const App = () => {
         if (!currentUser) return null;
 
         switch (activeMenu) {
-            case 'Overview': return <Overview subscribers={subscribers} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
+            case 'Overview': return <Overview subscribers={subscribers} expenses={expenses} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
             case 'Subscribers': return <Subscribers subscribers={subscribers} onSave={handleSaveSubscriber} onDelete={handleDeleteSubscriber} agents={agents} plans={residentialPlans} currentUser={currentUser} />;
             case 'Agent Performance': return <AgentPerformance subscribers={subscribers} agents={agents} />;
             case 'Payout Reports': return <PayoutReports subscribers={subscribers} agents={agents} currentUser={currentUser} />;
             case 'Accounting & Financial': return <AccountingFinancial subscribers={subscribers} expenses={expenses} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} />;
-            default: return <Overview subscribers={subscribers} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
+            default: return <Overview subscribers={subscribers} expenses={expenses} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
         }
     };
 
