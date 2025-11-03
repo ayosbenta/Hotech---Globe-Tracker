@@ -30,41 +30,27 @@ const getPlanPrice = (plan) => {
 };
 
 const formatDate = (dateString) => {
-    // If the string is falsy (null, undefined, ''), return it as is.
     if (!dateString) return dateString;
-
-    // This regex specifically checks for the 'YYYY-MM-DD' format.
     const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
-
-    // `new Date(dateString)` can be tricky with timezones for date-only strings.
-    // '2025-11-03' is interpreted as '2025-11-03T00:00:00' in the *local* timezone.
-    // This can result in the previous day when converted to UTC.
-    // To ensure we always get the intended day, we treat date-only strings as UTC.
     let date;
     if (isDateOnly) {
         const parts = dateString.split('-');
-        // Construct date in UTC to avoid timezone shift issues.
         date = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
     } else {
-        // For full ISO strings like '...T...Z', new Date() parses them as UTC correctly.
         date = new Date(dateString);
     }
 
-    // Check for an invalid date.
     if (isNaN(date.getTime())) {
-        return dateString; // Return original string if it's not a valid date
+        return dateString;
     }
 
     const options: Intl.DateTimeFormatOptions = {
         year: 'numeric',
         month: 'short',
         day: '2-digit',
-        timeZone: 'UTC' // Display the date as it is in UTC.
+        timeZone: 'UTC'
     };
-
-    const formattedDate = date.toLocaleDateString('en-US', options);
-    const dateParts = formattedDate.replace(',', '').split(' ');
-    return `${dateParts[0]}. ${dateParts[1]}, ${dateParts[2]}`;
+    return date.toLocaleDateString('en-US', options);
 };
 
 
@@ -96,13 +82,11 @@ const Login = ({ onLogin, agents }) => {
         e.preventDefault();
         setError('');
 
-        // Admin check
         if (username.toLowerCase() === 'admin' && password === 'admin') {
             onLogin({ name: 'Admin', role: 'admin' });
             return;
         }
 
-        // Agent check
         const agentExists = agents.find(agent => agent.toLowerCase() === username.toLowerCase());
         if (agentExists && password === `${agentExists}123`) {
             onLogin({ name: agentExists, role: 'agent' });
@@ -125,6 +109,7 @@ const Login = ({ onLogin, agents }) => {
                         <input
                             type="text"
                             id="username"
+                            className="form-control"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -135,6 +120,7 @@ const Login = ({ onLogin, agents }) => {
                         <input
                             type="password"
                             id="password"
+                            className="form-control"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -157,45 +143,6 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
         { name: 'Accounting & Financial', icon: 'accounting', roles: ['admin'] },
     ];
 
-    const sidebarStyle: React.CSSProperties = {
-        width: '260px',
-        backgroundColor: 'var(--globe-bg-white)',
-        padding: '1.5rem 1rem',
-        display: 'flex',
-        flexDirection: 'column',
-        borderRight: '1px solid var(--globe-border-color)',
-        flexShrink: 0,
-    };
-
-    const logoStyle = {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        paddingBottom: '1.5rem',
-        marginBottom: '1rem',
-        borderBottom: '1px solid var(--globe-border-color)',
-    };
-
-    const logoTextStyle = {
-        color: 'var(--globe-blue)',
-        fontSize: '1.5rem',
-        fontWeight: 'bold',
-    };
-    
-    const menuItemStyle = (isActive) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.75rem 1rem',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        color: isActive ? 'var(--globe-bg-white)' : 'var(--globe-text-secondary)',
-        backgroundColor: isActive ? 'var(--globe-blue)' : 'transparent',
-        fontWeight: isActive ? 600 : 400,
-        transition: 'all 0.2s ease-in-out',
-        marginBottom: '0.5rem',
-    });
-
     const handleMenuClick = (menuName) => {
         setActiveMenu(menuName);
         onClose();
@@ -204,15 +151,15 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
     return (
         <>
             {isOpen && <div className="sidebar-backdrop" onClick={onClose}></div>}
-            <nav style={sidebarStyle} className={`sidebar no-print ${isOpen ? 'sidebar-open' : ''}`}>
-                <div style={logoStyle}>
-                    <span style={logoTextStyle}>Globe</span>
-                    <span style={{ color: 'var(--globe-text-primary)', fontSize: '1.5rem', fontWeight: '300' }}>Tracker</span>
+            <nav className={`sidebar no-print ${isOpen ? 'sidebar-open' : ''}`}>
+                <div className="sidebar-logo">
+                    <span className="sidebar-logo-text">Globe</span>
+                    <span className="sidebar-logo-subtext">Tracker</span>
                 </div>
                 {menus.filter(menu => menu.roles.includes(userRole)).map(menu => (
                     <div
                         key={menu.name}
-                        style={menuItemStyle(activeMenu === menu.name)}
+                        className={`menu-item ${activeMenu === menu.name ? 'active' : ''}`}
                         onClick={() => handleMenuClick(menu.name)}
                         role="button"
                         tabIndex={0}
@@ -228,54 +175,19 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
 };
 
 const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
-    const headerStyle: React.CSSProperties = {
-        height: '70px',
-        backgroundColor: 'var(--globe-bg-white)',
-        borderBottom: '1px solid var(--globe-border-color)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 2rem',
-        flexShrink: 0,
-    };
-    
-    const userContainerStyle: React.CSSProperties = {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-    };
-
-    const logoutButtonStyle: React.CSSProperties = {
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        color: 'var(--globe-text-secondary)',
-        fontWeight: 600
-    };
-    
-    const savingIndicatorStyle: React.CSSProperties = {
-        color: 'var(--globe-text-secondary)',
-        fontWeight: 600,
-        opacity: isSaving ? 1 : 0,
-        transition: 'opacity 0.3s ease-in-out'
-    };
-
     return (
-        <header style={headerStyle} className="no-print">
+        <header className="app-header no-print">
             <div className="header-start">
                  <button className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
                     <Icon path={ICONS.menu} />
                 </button>
-                <div style={savingIndicatorStyle}>
+                <div className={`saving-indicator ${isSaving ? 'is-saving' : ''}`}>
                     Saving...
                 </div>
             </div>
-            <div style={userContainerStyle}>
+            <div className="header-user">
                 <span>Welcome, <strong>{currentUser.name}</strong></span>
-                <button style={logoutButtonStyle} onClick={onLogout}>
+                <button className="logout-btn" onClick={onLogout}>
                     <Icon path={ICONS.logout} />
                     Logout
                 </button>
@@ -294,44 +206,25 @@ const Overview = ({ subscribers, overviewPerformance, currentUser }) => {
         return subscribers;
     }, [subscribers, currentUser]);
     
-    const cardGridStyle = {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '1.5rem',
-    };
-    const statCardStyle: React.CSSProperties = {
-        display: 'flex',
-        flexDirection: 'column',
-    };
-    const statValueStyle = {
-        fontSize: '2.5rem',
-        fontWeight: 'bold',
-        color: 'var(--globe-blue)',
-    };
-    const statLabelStyle = {
-        fontSize: '1rem',
-        color: 'var(--globe-text-secondary)',
-    };
-
     return (
         <div>
             <h1>Overview</h1>
-            <div style={cardGridStyle}>
-                <div className="card" style={statCardStyle}>
-                    <span style={statValueStyle}>{visibleSubscribers.length}</span>
-                    <span style={statLabelStyle}>{currentUser.role === 'agent' ? 'Your Total Subscribers' : 'Total Subscribers'}</span>
+            <div className="card-grid">
+                <div className="overview-stat-card">
+                    <div className="stat-value">{visibleSubscribers.length}</div>
+                    <div className="stat-label">{currentUser.role === 'agent' ? 'Your Total Subscribers' : 'Total Subscribers'}</div>
                 </div>
-                <div className="card" style={statCardStyle}>
-                    <span style={statValueStyle}>{totalSalesThisMonth}</span>
-                    <span style={statLabelStyle}>Total Sales This Month</span>
+                <div className="overview-stat-card">
+                    <div className="stat-value">{totalSalesThisMonth}</div>
+                    <div className="stat-label">Total Sales This Month</div>
                 </div>
-                <div className="card" style={statCardStyle}>
-                    <span style={statValueStyle}>₱{totalCommissions.toLocaleString()}</span>
-                    <span style={statLabelStyle}>Total Commissions This Month</span>
+                <div className="overview-stat-card">
+                    <div className="stat-value">₱{totalCommissions.toLocaleString()}</div>
+                    <div className="stat-label">Total Commissions This Month</div>
                 </div>
-                <div className="card" style={statCardStyle}>
-                    <span style={statValueStyle}>{topAgent.name}</span>
-                    <span style={statLabelStyle}>Top Performing Agent</span>
+                <div className="overview-stat-card">
+                    <div className="stat-value">{topAgent.name}</div>
+                    <div className="stat-label">Top Performing Agent</div>
                 </div>
             </div>
         </div>
@@ -394,35 +287,35 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label htmlFor="dateOfApplication">Date of Application</label>
-                        <input type="date" id="dateOfApplication" name="dateOfApplication" value={formData.dateOfApplication} onChange={handleChange} required disabled={!!subscriber} />
+                        <input type="date" id="dateOfApplication" name="dateOfApplication" className="form-control" value={formData.dateOfApplication} onChange={handleChange} required disabled={!!subscriber} />
                     </div>
                     <div className="form-group">
                         <label htmlFor="name">Name</label>
-                        <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required />
+                        <input type="text" id="name" name="name" className="form-control" value={formData.name} onChange={handleChange} required />
                     </div>
                      <div className="form-group">
                         <label htmlFor="jobOrderNo">Job Order No.</label>
-                        <input type="text" id="jobOrderNo" name="jobOrderNo" value={formData.jobOrderNo} onChange={handleChange} />
+                        <input type="text" id="jobOrderNo" name="jobOrderNo" className="form-control" value={formData.jobOrderNo} onChange={handleChange} />
                     </div>
                     <div className="form-group">
                         <label htmlFor="plan">Plan</label>
-                        <select id="plan" name="plan" value={formData.plan} onChange={handleChange} required>
+                        <select id="plan" name="plan" className="form-control" value={formData.plan} onChange={handleChange} required>
                             {plans.map(plan => <option key={plan} value={plan}>{plan}</option>)}
                         </select>
                     </div>
                     <div className="form-group">
                         <label htmlFor="activationDate">Activation Date</label>
-                        <input type="date" id="activationDate" name="activationDate" value={formData.activationDate} onChange={handleChange} />
+                        <input type="date" id="activationDate" name="activationDate" className="form-control" value={formData.activationDate} onChange={handleChange} />
                     </div>
                     <div className="form-group">
                         <label htmlFor="agent">Agent</label>
-                        <select id="agent" name="agent" value={formData.agent} onChange={handleChange} required disabled={currentUser.role === 'agent'}>
+                        <select id="agent" name="agent" className="form-control" value={formData.agent} onChange={handleChange} required disabled={currentUser.role === 'agent'}>
                             {agents.map(agent => <option key={agent} value={agent}>{agent}</option>)}
                         </select>
                     </div>
                     <div className="form-group">
                         <label htmlFor="status">Status</label>
-                        <select id="status" name="status" value={formData.status} onChange={handleChange} required>
+                        <select id="status" name="status" className="form-control" value={formData.status} onChange={handleChange} required>
                             <option value="Pending">Pending</option>
                             <option value="On The Way">On The Way</option>
                             <option value="Installed">Installed</option>
@@ -433,7 +326,7 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                     {(formData.status === 'Cancelled' || formData.status === 'Reject') && (
                         <div className="form-group">
                             <label htmlFor="reason">Reason</label>
-                            <textarea id="reason" name="reason" value={formData.reason} onChange={handleChange} required />
+                            <textarea id="reason" name="reason" className="form-control" value={formData.reason} onChange={handleChange} required />
                         </div>
                     )}
                     <div className="modal-actions">
@@ -494,40 +387,19 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
         }
     };
     
-    const tableContainerStyle: React.CSSProperties = { marginTop: '2rem', overflowX: 'auto' };
-    const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: '1000px' };
-    const thStyle: React.CSSProperties = {
-        padding: '0.75rem 1rem',
-        textAlign: 'left',
-        borderBottom: '2px solid var(--globe-border-color)',
-        backgroundColor: '#f8f9fa',
-        color: 'var(--globe-text-secondary)',
-        textTransform: 'uppercase',
-        fontSize: '0.8rem',
-    };
-    const tdStyle = {
-        padding: '0.75rem 1rem',
-        borderBottom: '1px solid var(--globe-border-color)',
-    };
-    
     const statusBadgeStyle = (status) => ({
-        padding: '0.25em 0.6em',
-        borderRadius: '12px',
-        fontSize: '0.8rem',
-        fontWeight: 600,
-        color: '#fff',
         backgroundColor: 
-            status === 'Installed' ? 'var(--globe-accent-green)' :
-            status === 'Pending' ? 'var(--globe-accent-yellow)' :
-            status === 'On The Way' ? 'var(--globe-accent-blue)' :
-            status === 'Cancelled' ? 'var(--globe-accent-red)' :
-            status === 'Reject' ? 'var(--globe-accent-gray)' :
+            status === 'Installed' ? 'var(--accent-green)' :
+            status === 'Pending' ? 'var(--accent-yellow)' :
+            status === 'On The Way' ? 'var(--accent-blue)' :
+            status === 'Cancelled' ? 'var(--accent-red)' :
+            status === 'Reject' ? 'var(--accent-gray)' :
             '#6c757d',
     });
 
     return (
         <div>
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="page-header">
                 <h1>Subscribers</h1>
                 <button className="btn btn-primary" onClick={() => openModal()}>New Subscriber</button>
             </div>
@@ -539,35 +411,36 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     aria-label="Search subscribers"
+                    style={{maxWidth: '450px'}}
                 />
-                <div style={tableContainerStyle}>
-                    <table style={tableStyle}>
+                <div className="table-responsive-wrapper">
+                    <table className="data-table">
                         <thead>
                             <tr>
-                                <th style={thStyle}>Date of App.</th>
-                                <th style={thStyle}>Name</th>
-                                <th style={thStyle}>Job Order No.</th>
-                                <th style={thStyle}>Plan</th>
-                                <th style={thStyle}>Activation Date</th>
-                                <th style={thStyle}>Agent</th>
-                                <th style={thStyle}>Status</th>
-                                <th style={thStyle}>Reason</th>
-                                <th style={thStyle}>Actions</th>
+                                <th>Date of App.</th>
+                                <th>Name</th>
+                                <th>Job Order No.</th>
+                                <th>Plan</th>
+                                <th>Activation Date</th>
+                                <th>Agent</th>
+                                <th>Status</th>
+                                <th>Reason</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSubscribers.map(sub => (
                                 <tr key={sub.id}>
-                                    <td style={tdStyle}>{formatDate(sub.dateOfApplication)}</td>
-                                    <td style={tdStyle}>{sub.name}</td>
-                                    <td style={tdStyle}>{sub.jobOrderNo}</td>
-                                    <td style={tdStyle}>{sub.plan}</td>
-                                    <td style={tdStyle}>{formatDate(sub.activationDate)}</td>
-                                    <td style={tdStyle}>{sub.agent}</td>
-                                    <td style={tdStyle}><span style={statusBadgeStyle(sub.status)}>{sub.status}</span></td>
-                                    <td style={tdStyle}>{sub.reason}</td>
-                                    <td style={tdStyle}>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <td>{formatDate(sub.dateOfApplication)}</td>
+                                    <td>{sub.name}</td>
+                                    <td>{sub.jobOrderNo}</td>
+                                    <td>{sub.plan}</td>
+                                    <td>{formatDate(sub.activationDate)}</td>
+                                    <td>{sub.agent}</td>
+                                    <td><span className="status-badge" style={statusBadgeStyle(sub.status)}>{sub.status}</span></td>
+                                    <td>{sub.reason}</td>
+                                    <td>
+                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
                                             <button className="btn-icon" onClick={() => openModal(sub)} aria-label={`Edit ${sub.name}`}>
                                                 <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                                             </button>
@@ -664,14 +537,6 @@ const AgentPerformance = ({ subscribers, agents }) => {
     };
 
     const thSortableStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none' };
-    const tableContainerStyle: React.CSSProperties = { marginTop: '2rem', overflowX: 'auto' };
-    const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: '1000px' };
-    const thStyle: React.CSSProperties = {
-        padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--globe-border-color)',
-        backgroundColor: '#f8f9fa', color: 'var(--globe-text-secondary)',
-        textTransform: 'uppercase', fontSize: '0.8rem',
-    };
-    const tdStyle: React.CSSProperties = { padding: '0.75rem 1rem', borderBottom: '1px solid var(--globe-border-color)' };
 
     return (
         <div>
@@ -690,29 +555,29 @@ const AgentPerformance = ({ subscribers, agents }) => {
                     </div>
                 </div>
 
-                <div style={tableContainerStyle}>
-                    <table style={tableStyle} className="report-table">
+                <div className="table-responsive-wrapper">
+                    <table className="data-table">
                         <thead>
                             <tr>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('name')}>Agent Name{getSortIndicator('name')}</th>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('installedSales')}>Installed Sales{getSortIndicator('installedSales')}</th>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('totalApplications')}>Total Apps{getSortIndicator('totalApplications')}</th>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('conversionRate')}>Conversion Rate{getSortIndicator('conversionRate')}</th>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('pending')}>Pending{getSortIndicator('pending')}</th>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('cancelledOrRejected')}>Cancelled/Rejected{getSortIndicator('cancelledOrRejected')}</th>
-                                <th style={{...thStyle, ...thSortableStyle}} onClick={() => requestSort('totalCommission')}>Commission Earned{getSortIndicator('totalCommission')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('name')}>Agent Name{getSortIndicator('name')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('installedSales')}>Installed Sales{getSortIndicator('installedSales')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('totalApplications')}>Total Apps{getSortIndicator('totalApplications')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('conversionRate')}>Conversion Rate{getSortIndicator('conversionRate')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('pending')}>Pending{getSortIndicator('pending')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('cancelledOrRejected')}>Cancelled/Rejected{getSortIndicator('cancelledOrRejected')}</th>
+                                <th style={thSortableStyle} onClick={() => requestSort('totalCommission')}>Commission Earned{getSortIndicator('totalCommission')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {sortedPerformanceData.map(agent => (
                                 <tr key={agent.name}>
-                                    <td style={tdStyle}>{agent.name}</td>
-                                    <td style={{...tdStyle, fontWeight: 600, color: 'var(--globe-blue)'}}>{agent.installedSales}</td>
-                                    <td style={tdStyle}>{agent.totalApplications}</td>
-                                    <td style={tdStyle}>{agent.conversionRate.toFixed(1)}%</td>
-                                    <td style={tdStyle}>{agent.pending}</td>
-                                    <td style={tdStyle}>{agent.cancelledOrRejected}</td>
-                                    <td style={tdStyle}>₱{agent.totalCommission.toLocaleString()}</td>
+                                    <td>{agent.name}</td>
+                                    <td style={{fontWeight: 600, color: 'var(--primary-brand)'}}>{agent.installedSales}</td>
+                                    <td>{agent.totalApplications}</td>
+                                    <td>{agent.conversionRate.toFixed(1)}%</td>
+                                    <td>{agent.pending}</td>
+                                    <td>{agent.cancelledOrRejected}</td>
+                                    <td>₱{agent.totalCommission.toLocaleString()}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -755,7 +620,7 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
 
     return (
         <div>
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="page-header">
                 <h1>Payout Reports</h1>
                 <button className="btn btn-secondary no-print" onClick={handlePrint}>Print Report</button>
             </div>
@@ -793,8 +658,8 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
                     </div>
                 </div>
 
-                <div style={{ marginTop: '2rem', overflowX: 'auto' }}>
-                    <table className="report-table">
+                <div className="table-responsive-wrapper">
+                    <table className="data-table report-table">
                         <thead>
                             <tr>
                                 <th>Agent Name</th>
@@ -827,7 +692,7 @@ const PayoutReports = ({ subscribers, agents, currentUser }) => {
 };
 
 const PieChart = ({ data }) => {
-    const colors = ['var(--globe-blue)', 'var(--globe-accent-green)', 'var(--globe-accent-yellow)', 'var(--globe-accent-red)', 'var(--globe-accent-blue)'];
+    const colors = ['var(--primary-brand)', 'var(--accent-green)', 'var(--accent-yellow)', 'var(--accent-red)', '#8b5cf6'];
     const total = data.reduce((sum, item) => sum + item.value, 0);
     if (total === 0) return <p>No data to display.</p>;
     
@@ -905,21 +770,21 @@ const ExpenseModal = ({ isOpen, onClose, onSave, expense }) => {
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label htmlFor="date">Date</label>
-                        <input type="date" id="date" name="date" value={formData.date} onChange={handleChange} required />
+                        <input type="date" id="date" name="date" className="form-control" value={formData.date} onChange={handleChange} required />
                     </div>
                     <div className="form-group">
                         <label htmlFor="category">Category</label>
-                        <select id="category" name="category" value={formData.category} onChange={handleChange} required>
+                        <select id="category" name="category" className="form-control" value={formData.category} onChange={handleChange} required>
                             {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
                     </div>
                      <div className="form-group">
                         <label htmlFor="description">Description</label>
-                        <input type="text" id="description" name="description" value={formData.description} onChange={handleChange} required />
+                        <input type="text" id="description" name="description" className="form-control" value={formData.description} onChange={handleChange} required />
                     </div>
                     <div className="form-group">
                         <label htmlFor="amount">Amount</label>
-                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={handleChange} required step="0.01" />
+                        <input type="number" id="amount" name="amount" className="form-control" value={formData.amount} onChange={handleChange} required step="0.01" />
                     </div>
                     <div className="modal-actions">
                         <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
@@ -1020,7 +885,7 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
                     <div className="stat-label">Total Expenses</div>
                 </div>
                  <div className="stat-card">
-                    <div className="stat-value" style={{color: financialData.netRevenue >= 0 ? 'var(--globe-accent-green)' : 'var(--globe-accent-red)'}}>
+                    <div className="stat-value" style={{color: financialData.netRevenue >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}}>
                         ₱{financialData.netRevenue.toLocaleString()}
                     </div>
                     <div className="stat-label">Net Revenue</div>
@@ -1033,12 +898,12 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
             </div>
 
             <div className="card" style={{ marginTop: '2rem' }}>
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div className="page-header" style={{marginBottom: '1rem' }}>
                     <h2>Expenses Log</h2>
                     <button className="btn btn-primary no-print" onClick={() => openModal()}>Add Expense</button>
                 </div>
-                <div style={{overflowX: 'auto'}}>
-                    <table className="report-table">
+                <div className="table-responsive-wrapper">
+                    <table className="data-table report-table">
                         <thead>
                             <tr>
                                 <th>Date</th>
@@ -1056,7 +921,7 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
                                     <td>{exp.description}</td>
                                     <td>₱{parseFloat(exp.amount || 0).toLocaleString()}</td>
                                     <td className="no-print">
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
                                             <button className="btn-icon" onClick={() => openModal(exp)} aria-label={`Edit expense`}>
                                                 <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                                             </button>
@@ -1186,13 +1051,10 @@ const App = () => {
     const handleSaveSubscriber = async (subscriberData) => {
         let updatedSubscribers;
         if (subscriberData.id && String(subscriberData.id).startsWith('sheet-row-')) {
-            // It's an existing item from the sheet, find and update
-             updatedSubscribers = subscribers.map(sub => sub.id === subscriberData.id ? subscriberData : sub);
+            updatedSubscribers = subscribers.map(sub => sub.id === subscriberData.id ? subscriberData : sub);
         } else if (subscriberData.id) {
-            // It's a locally created item being edited, find and update
-             updatedSubscribers = subscribers.map(sub => sub.id === subscriberData.id ? subscriberData : sub);
+            updatedSubscribers = subscribers.map(sub => sub.id === subscriberData.id ? subscriberData : sub);
         } else {
-            // It's a new item
             const newSubscriber = { ...subscriberData, id: Date.now() };
             updatedSubscribers = [newSubscriber, ...subscribers];
         }
