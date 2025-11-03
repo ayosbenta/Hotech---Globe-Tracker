@@ -53,6 +53,22 @@ const formatDate = (dateString) => {
     return date.toLocaleDateString('en-US', options);
 };
 
+const normalizeDateToYYYYMMDD = (sheetDate) => {
+    if (!sheetDate) return '';
+    // Create a date object. This is robust for ISO strings and MM/DD/YYYY formats.
+    const d = new Date(sheetDate);
+    // If parsing fails, it's not a recognizable date string.
+    if (isNaN(d.getTime())) return '';
+    
+    // Construct the date string from the browser's LOCAL date parts.
+    // This correctly reflects the absolute timestamp in the user's timezone.
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+};
+
 
 // --- SVG ICONS ---
 const Icon = ({ path, className = '' }) => (
@@ -964,6 +980,14 @@ const App = () => {
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+    const formatDateForSheet = (dateString) => {
+        if (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            const [year, month, day] = dateString.split('-');
+            return `${month}-${day}-${year}`;
+        }
+        return dateString;
+    };
+
     useEffect(() => {
         if (isSidebarOpen) {
             document.body.classList.add('body-no-scroll');
@@ -989,11 +1013,11 @@ const App = () => {
                 const processedSubscribers = (data.subscribers || []).map((item, index) => ({
                     ...item,
                     id: item.id || `sheet-row-${index + 2}`,
-                    dateOfApplication: item.dateOfApplication || '',
+                    dateOfApplication: normalizeDateToYYYYMMDD(item.dateOfApplication),
                     name: item.name || '',
                     jobOrderNo: item.jobOrderNo || '',
                     plan: item.plan || '',
-                    activationDate: item.activationDate || '',
+                    activationDate: normalizeDateToYYYYMMDD(item.activationDate),
                     agent: item.agent || '',
                     status: item.status || 'Pending',
                     reason: item.reason || ''
@@ -1003,7 +1027,7 @@ const App = () => {
                 const processedExpenses = (data.expenses || []).map((item, index) => ({
                     ...item,
                     id: item.id || `exp-row-${index + 2}`,
-                    date: item.date || '',
+                    date: normalizeDateToYYYYMMDD(item.date),
                     category: item.category || 'Others',
                     description: item.description || '',
                     amount: parseFloat(item.amount) || 0
@@ -1024,9 +1048,22 @@ const App = () => {
     const saveDataToSheet = async (dataToSave, sheetName) => {
         setIsSaving(true);
         try {
+            const dataForSheet = JSON.parse(JSON.stringify(dataToSave));
+
+            if (sheetName === 'Globe Sales Tracker Data') {
+                dataForSheet.forEach(item => {
+                    item.dateOfApplication = formatDateForSheet(item.dateOfApplication);
+                    item.activationDate = formatDateForSheet(item.activationDate);
+                });
+            } else if (sheetName === 'Expenses') {
+                dataForSheet.forEach(item => {
+                    item.date = formatDateForSheet(item.date);
+                });
+            }
+
             const payload = {
                 sheetName: sheetName,
-                data: dataToSave,
+                data: dataForSheet,
             };
 
             const response = await fetch(GOOGLE_SCRIPT_URL, {
