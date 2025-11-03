@@ -339,6 +339,37 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
         return subscribers;
     }, [subscribers, currentUser]);
 
+    // Agent-specific performance data for the cards
+    const agentPerformance = useMemo(() => {
+        if (currentUser.role !== 'agent') return null;
+        
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+
+        // For Sales & Commissions (aligns with Payouts)
+        const installedThisMonth = visibleSubscribers.filter(sub => {
+            if (!sub.activationDate) return false;
+            const activationDate = new Date(sub.activationDate);
+            return sub.status === 'Installed' &&
+                   activationDate.getFullYear() === currentYear &&
+                   activationDate.getMonth() === currentMonth;
+        });
+        const totalSales = installedThisMonth.length;
+        const totalCommissions = installedThisMonth.reduce((sum, sub) => sum + calculateCommission(sub.plan), 0);
+
+        // For Conversion Rate (aligns with Agent Performance page)
+        const applicationsThisMonth = visibleSubscribers.filter(sub => {
+            if (!sub.dateOfApplication) return false;
+            const appDate = new Date(sub.dateOfApplication);
+            return appDate.getFullYear() === currentYear && appDate.getMonth() === currentMonth;
+        });
+        const installedFromThisMonthApps = applicationsThisMonth.filter(sub => sub.status === 'Installed').length;
+        const totalApplications = applicationsThisMonth.length;
+        const conversionRate = totalApplications > 0 ? (installedFromThisMonthApps / totalApplications) * 100 : 0;
+
+        return { totalSales, totalCommissions, conversionRate };
+    }, [visibleSubscribers, currentUser.role]);
+
     const chartData = useMemo(() => {
         const now = new Date();
         const data = { labels: [], commissions: [], expenses: [] };
@@ -355,23 +386,25 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                 const month = date.getMonth();
                 const year = date.getFullYear();
                 
-                const monthlyCommissions = subscribers
+                const monthlyCommissions = visibleSubscribers
                     .filter(s => {
                         const actDate = parseDate(s.activationDate);
                         return s.status === 'Installed' && actDate && actDate.getMonth() === month && actDate.getFullYear() === year;
                     })
                     .reduce((sum, s) => sum + calculateCommission(s.plan), 0);
                 
-                const monthlyExpenses = expenses
-                    .filter(e => {
-                        const expDate = parseDate(e.date);
-                        return expDate && expDate.getMonth() === month && expDate.getFullYear() === year;
-                    })
-                    .reduce((sum, e) => sum + e.amount, 0);
-
                 data.labels.push(date.toLocaleString('default', { month: 'short' }));
                 data.commissions.push(monthlyCommissions);
-                data.expenses.push(monthlyExpenses);
+                
+                if (currentUser.role === 'admin') {
+                    const monthlyExpenses = expenses
+                        .filter(e => {
+                            const expDate = parseDate(e.date);
+                            return expDate && expDate.getMonth() === month && expDate.getFullYear() === year;
+                        })
+                        .reduce((sum, e) => sum + e.amount, 0);
+                    data.expenses.push(monthlyExpenses);
+                }
             }
         } else if (activeTab === 'Weekly') {
             for (let i = 11; i >= 0; i--) {
@@ -381,72 +414,103 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                 weekEndDate.setDate(weekEndDate.getDate() + 6);
                 weekEndDate.setHours(23, 59, 59, 999);
 
-                const weeklyCommissions = subscribers
+                const weeklyCommissions = visibleSubscribers
                     .filter(s => {
                         const actDate = parseDate(s.activationDate);
                         return s.status === 'Installed' && actDate && actDate >= weekStartDate && actDate <= weekEndDate;
                     })
                     .reduce((sum, s) => sum + calculateCommission(s.plan), 0);
-
-                const weeklyExpenses = expenses
-                     .filter(e => {
-                        const expDate = parseDate(e.date);
-                        return expDate && expDate >= weekStartDate && expDate <= weekEndDate;
-                    })
-                    .reduce((sum, e) => sum + e.amount, 0);
                 
                 data.labels.push(`${weekStartDate.getMonth()+1}/${weekStartDate.getDate()}`);
                 data.commissions.push(weeklyCommissions);
-                data.expenses.push(weeklyExpenses);
-            }
 
+                if (currentUser.role === 'admin') {
+                     const weeklyExpenses = expenses
+                         .filter(e => {
+                            const expDate = parseDate(e.date);
+                            return expDate && expDate >= weekStartDate && expDate <= weekEndDate;
+                        })
+                        .reduce((sum, e) => sum + e.amount, 0);
+                    data.expenses.push(weeklyExpenses);
+                }
+            }
         } else if (activeTab === 'Daily') {
              for (let i = 29; i >= 0; i--) {
                 const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
                 date.setHours(0,0,0,0);
                 const yyyymmdd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                 
-                const dailyCommissions = subscribers
+                const dailyCommissions = visibleSubscribers
                     .filter(s => s.status === 'Installed' && s.activationDate === yyyymmdd)
                     .reduce((sum, s) => sum + calculateCommission(s.plan), 0);
                 
-                const dailyExpenses = expenses
-                    .filter(e => e.date === yyyymmdd)
-                    .reduce((sum, e) => sum + e.amount, 0);
-
                 data.labels.push(`${date.getMonth()+1}/${date.getDate()}`);
                 data.commissions.push(dailyCommissions);
-                data.expenses.push(dailyExpenses);
+                
+                if (currentUser.role === 'admin') {
+                    const dailyExpenses = expenses
+                        .filter(e => e.date === yyyymmdd)
+                        .reduce((sum, e) => sum + e.amount, 0);
+                    data.expenses.push(dailyExpenses);
+                }
             }
         }
 
         return data;
-    }, [subscribers, expenses, activeTab]);
+    }, [visibleSubscribers, expenses, activeTab, currentUser.role]);
+    
+    const chartDatasets = [
+        { name: 'Commissions', data: chartData.commissions, color: 'var(--primary-brand)' },
+    ];
+    if (currentUser.role === 'admin') {
+        chartDatasets.push({ name: 'Expenses', data: chartData.expenses, color: 'var(--accent-red)' });
+    }
     
     return (
         <div>
             <h1>Overview</h1>
-            <div className="card-grid">
-                <div className="overview-stat-card">
-                    <div className="stat-value">{visibleSubscribers.length}</div>
-                    <div className="stat-label">{currentUser.role === 'agent' ? 'Your Total Subscribers' : 'Total Subscribers'}</div>
+            {currentUser.role === 'agent' ? (
+                <div className="card-grid">
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{visibleSubscribers.length}</div>
+                        <div className="stat-label">Your Total Subscribers</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{agentPerformance.totalSales}</div>
+                        <div className="stat-label">Your Sales This Month</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">₱{agentPerformance.totalCommissions.toLocaleString()}</div>
+                        <div className="stat-label">Your Commissions This Month</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{agentPerformance.conversionRate.toFixed(1)}%</div>
+                        <div className="stat-label">Monthly Conversion Rate</div>
+                    </div>
                 </div>
-                <div className="overview-stat-card">
-                    <div className="stat-value">{totalSalesThisMonth}</div>
-                    <div className="stat-label">Total Sales This Month</div>
+            ) : (
+                <div className="card-grid">
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{visibleSubscribers.length}</div>
+                        <div className="stat-label">Total Subscribers</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{totalSalesThisMonth}</div>
+                        <div className="stat-label">Total Sales This Month</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">₱{totalCommissions.toLocaleString()}</div>
+                        <div className="stat-label">Total Commissions This Month</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{topAgent.name}</div>
+                        <div className="stat-label">Top Performing Agent</div>
+                    </div>
                 </div>
-                <div className="overview-stat-card">
-                    <div className="stat-value">₱{totalCommissions.toLocaleString()}</div>
-                    <div className="stat-label">Total Commissions This Month</div>
-                </div>
-                <div className="overview-stat-card">
-                    <div className="stat-value">{topAgent.name}</div>
-                    <div className="stat-label">Top Performing Agent</div>
-                </div>
-            </div>
+            )}
 
             <div className="card" style={{ marginTop: '2rem' }}>
-                <h2>Commission vs. Expenses</h2>
+                <h2>{currentUser.role === 'agent' ? 'My Commission Trend' : 'Commission vs. Expenses'}</h2>
                  <div className="tabs">
                     <button className={activeTab === 'Daily' ? 'active' : ''} onClick={() => setActiveTab('Daily')}>Daily</button>
                     <button className={activeTab === 'Weekly' ? 'active' : ''} onClick={() => setActiveTab('Weekly')}>Weekly</button>
@@ -454,10 +518,7 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                 </div>
                 <LineChart
                     labels={chartData.labels}
-                    datasets={[
-                        { name: 'Commissions', data: chartData.commissions, color: 'var(--primary-brand)' },
-                        { name: 'Expenses', data: chartData.expenses, color: 'var(--accent-red)' }
-                    ]}
+                    datasets={chartDatasets}
                 />
             </div>
         </div>
