@@ -638,7 +638,9 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                                     <th>Name</th>
                                     <th>Agent</th>
                                     <th>Plan</th>
+                                    <th>Activation Date</th>
                                     <th>Status</th>
+                                    <th>Payout Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -648,9 +650,15 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                                         <td>{sub.name}</td>
                                         <td>{sub.agent}</td>
                                         <td>{sub.plan}</td>
+                                        <td>{formatDate(sub.activationDate)}</td>
                                         <td>
                                             <span className="status-badge" style={statusBadgeStyle(sub.status)}>
                                                 {sub.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="status-badge" style={payoutStatusBadgeStyle(sub.payoutStatus || 'Pending')}>
+                                                {sub.payoutStatus || 'Pending'}
                                             </span>
                                         </td>
                                     </tr>
