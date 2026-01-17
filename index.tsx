@@ -15,18 +15,17 @@ const residentialPlans = [
 ];
 
 // --- HELPERS ---
-const calculateCommission = (plan) => {
-    if (!plan) return 0;
-    if (plan.includes('1499')) return 700;
-    if (plan.includes('1999')) return 900;
-    if (plan.includes('2499')) return 1200;
-    return 0;
-};
-
 const getPlanPrice = (plan) => {
     if (!plan) return 0;
     const match = plan.match(/(\d+)/);
     return match ? parseInt(match[0], 10) : 0;
+};
+
+const calculateCommission = (plan) => {
+    if (!plan) return 0;
+    const price = getPlanPrice(plan);
+    // Commission is 80% of the plan price
+    return price * 0.8;
 };
 
 const formatDate = (dateString) => {
