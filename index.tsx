@@ -834,7 +834,11 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                     </div>
                     <div className="form-group">
                         <label htmlFor="encoder">Encoder</label>
-                        <input type="text" id="encoder" name="encoder" className="form-control" value={formData.encoder || ''} onChange={handleChange} />
+                        <select id="encoder" name="encoder" className="form-control" value={formData.encoder || ''} onChange={handleChange}>
+                            <option value="">Select Team</option>
+                            <option value="Team Cecil">Team Cecil</option>
+                            <option value="Team Nygren">Team Nygren</option>
+                        </select>
                     </div>
                     <div className="form-group">
                         <label htmlFor="status">Status</label>
