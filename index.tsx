@@ -743,10 +743,13 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
     const initialFormState = {
         dateOfApplication: new Date().toISOString().split('T')[0],
         name: '',
+        address: '',
         jobOrderNo: '',
+        accountNumber: '',
         plan: plans[0] || '',
         activationDate: '',
         agent: currentUser.role === 'agent' ? currentUser.name : (agents[0] || ''),
+        encoder: '',
         status: 'Pending',
         reason: '',
     };
@@ -801,9 +804,17 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                         <label htmlFor="name">Name</label>
                         <input type="text" id="name" name="name" className="form-control" value={formData.name} onChange={handleChange} required />
                     </div>
+                    <div className="form-group">
+                        <label htmlFor="address">Address</label>
+                        <textarea id="address" name="address" className="form-control" value={formData.address || ''} onChange={handleChange} rows={2} />
+                    </div>
                      <div className="form-group">
                         <label htmlFor="jobOrderNo">Job Order No.</label>
                         <input type="text" id="jobOrderNo" name="jobOrderNo" className="form-control" value={formData.jobOrderNo} onChange={handleChange} />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="accountNumber">Account Number</label>
+                        <input type="text" id="accountNumber" name="accountNumber" className="form-control" value={formData.accountNumber || ''} onChange={handleChange} />
                     </div>
                     <div className="form-group">
                         <label htmlFor="plan">Plan</label>
@@ -820,6 +831,10 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                         <select id="agent" name="agent" className="form-control" value={formData.agent} onChange={handleChange} required disabled={currentUser.role === 'agent'}>
                             {agents.map(agent => <option key={agent} value={agent}>{agent}</option>)}
                         </select>
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="encoder">Encoder</label>
+                        <input type="text" id="encoder" name="encoder" className="form-control" value={formData.encoder || ''} onChange={handleChange} />
                     </div>
                     <div className="form-group">
                         <label htmlFor="status">Status</label>
@@ -927,10 +942,13 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                             <tr>
                                 <th>Date of App.</th>
                                 <th>Name</th>
+                                <th>Address</th>
                                 <th>Job Order No.</th>
+                                <th>Account No.</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Agent</th>
+                                <th>Encoder</th>
                                 <th>Status</th>
                                 <th>Reason</th>
                                 <th>Actions</th>
@@ -941,10 +959,13 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                                 <tr key={sub.id}>
                                     <td>{formatDate(sub.dateOfApplication)}</td>
                                     <td>{sub.name}</td>
+                                    <td>{sub.address}</td>
                                     <td>{sub.jobOrderNo}</td>
+                                    <td>{sub.accountNumber}</td>
                                     <td>{sub.plan}</td>
                                     <td>{formatDate(sub.activationDate)}</td>
                                     <td>{sub.agent}</td>
+                                    <td>{sub.encoder}</td>
                                     <td><span className="status-badge" style={statusBadgeStyle(sub.status)}>{sub.status}</span></td>
                                     <td>{sub.reason}</td>
                                     <td>
@@ -1705,10 +1726,13 @@ const App = () => {
                     id: item.id || `sheet-row-${index + 2}`,
                     dateOfApplication: normalizeDateToYYYYMMDD(item.dateOfApplication),
                     name: item.name || '',
+                    address: item.address || '',
                     jobOrderNo: item.jobOrderNo || '',
+                    accountNumber: item.accountNumber || '',
                     plan: item.plan || '',
                     activationDate: normalizeDateToYYYYMMDD(item.activationDate),
                     agent: item.agent || '',
+                    encoder: item.encoder || '',
                     status: item.status || 'Pending',
                     reason: item.reason || '',
                     payoutStatus: item.payoutStatus || 'Pending',
