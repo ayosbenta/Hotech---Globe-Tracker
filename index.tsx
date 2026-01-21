@@ -838,6 +838,7 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                             <option value="">Select Team</option>
                             <option value="Team Cecil">Team Cecil</option>
                             <option value="Team Nygren">Team Nygren</option>
+                            <option value="Team Rommel - Ormoc">Team Rommel - Ormoc</option>
                         </select>
                     </div>
                     <div className="form-group">
