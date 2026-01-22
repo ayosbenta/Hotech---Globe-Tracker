@@ -746,6 +746,7 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
         address: '',
         jobOrderNo: '',
         accountNumber: '',
+        link: '',
         plan: plans[0] || '',
         activationDate: '',
         agent: currentUser.role === 'agent' ? currentUser.name : (agents[0] || ''),
@@ -815,6 +816,10 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                     <div className="form-group">
                         <label htmlFor="accountNumber">Account Number</label>
                         <input type="text" id="accountNumber" name="accountNumber" className="form-control" value={formData.accountNumber || ''} onChange={handleChange} />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="link">Link</label>
+                        <input type="text" id="link" name="link" className="form-control" value={formData.link || ''} onChange={handleChange} placeholder="http://" />
                     </div>
                     <div className="form-group">
                         <label htmlFor="plan">Plan</label>
@@ -950,6 +955,7 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                                 <th>Address</th>
                                 <th>Job Order No.</th>
                                 <th>Account No.</th>
+                                <th>Link</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Agent</th>
@@ -967,6 +973,13 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                                     <td>{sub.address}</td>
                                     <td>{sub.jobOrderNo}</td>
                                     <td>{sub.accountNumber}</td>
+                                    <td>
+                                        {sub.link ? (
+                                            <a href={sub.link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-brand)', textDecoration: 'underline' }}>
+                                                View
+                                            </a>
+                                        ) : ''}
+                                    </td>
                                     <td>{sub.plan}</td>
                                     <td>{formatDate(sub.activationDate)}</td>
                                     <td>{sub.agent}</td>
@@ -1734,6 +1747,7 @@ const App = () => {
                     address: item.address || '',
                     jobOrderNo: item.jobOrderNo || '',
                     accountNumber: item.accountNumber || '',
+                    link: item.link || '',
                     plan: item.plan || '',
                     activationDate: normalizeDateToYYYYMMDD(item.activationDate),
                     agent: item.agent || '',
