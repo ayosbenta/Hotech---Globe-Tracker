@@ -54,13 +54,9 @@ const formatDate = (dateString) => {
 
 const normalizeDateToYYYYMMDD = (sheetDate) => {
     if (!sheetDate) return '';
-    // Create a date object. This is robust for ISO strings and MM/DD/YYYY formats.
     const d = new Date(sheetDate);
-    // If parsing fails, it's not a recognizable date string.
     if (isNaN(d.getTime())) return '';
     
-    // Construct the date string from the browser's LOCAL date parts.
-    // This correctly reflects the absolute timestamp in the user's timezone.
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -876,6 +872,8 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
 
 const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterAgent, setFilterAgent] = useState('All');
+    const [filterStatus, setFilterStatus] = useState('All');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSubscriber, setEditingSubscriber] = useState(null);
     
@@ -888,17 +886,21 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
 
     const filteredSubscribers = useMemo(() => 
         visibleSubscribers
-            .filter(sub => 
-                Object.values(sub).some(val => 
+            .filter(sub => {
+                const matchesSearch = Object.values(sub).some(val => 
                     String(val).toLowerCase().includes(searchTerm.toLowerCase())
-                )
-            )
+                );
+                const matchesAgent = filterAgent === 'All' || sub.agent === filterAgent;
+                const matchesStatus = filterStatus === 'All' || sub.status === filterStatus;
+                
+                return matchesSearch && matchesAgent && matchesStatus;
+            })
             .sort((a, b) => {
                 const dateA = a.dateOfApplication ? new Date(a.dateOfApplication).getTime() : 0;
                 const dateB = b.dateOfApplication ? new Date(b.dateOfApplication).getTime() : 0;
                 return dateB - dateA;
             }),
-        [searchTerm, visibleSubscribers]
+        [searchTerm, visibleSubscribers, filterAgent, filterStatus]
     );
     
     const openModal = (subscriber = null) => {
@@ -939,15 +941,43 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                 <button className="btn btn-primary" onClick={() => openModal()}>New Subscriber</button>
             </div>
             <div className="card">
-                <input
-                    type="text"
-                    placeholder="Search subscribers..."
-                    className="form-control"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    aria-label="Search subscribers"
-                    style={{maxWidth: '450px'}}
-                />
+                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input
+                        type="text"
+                        placeholder="Search subscribers..."
+                        className="form-control"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        aria-label="Search subscribers"
+                        style={{maxWidth: '300px'}}
+                    />
+                     {currentUser.role === 'admin' && (
+                        <select 
+                            className="form-control"
+                            value={filterAgent}
+                            onChange={(e) => setFilterAgent(e.target.value)}
+                            style={{maxWidth: '200px'}}
+                            aria-label="Filter by Agent"
+                        >
+                            <option value="All">All Agents</option>
+                            {agents.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                    )}
+                     <select 
+                        className="form-control"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        style={{maxWidth: '200px'}}
+                        aria-label="Filter by Status"
+                    >
+                        <option value="All">All Status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="On The Way">On The Way</option>
+                        <option value="Installed">Installed</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Reject">Reject</option>
+                    </select>
+                </div>
                 <div className="table-responsive-wrapper">
                     <table className="data-table">
                         <thead>
@@ -1370,6 +1400,7 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                             <tr>
                                 <th>Agent Name</th>
                                 <th>Subscriber Name</th>
+                                <th>Job Order No.</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Commission</th>
@@ -1382,6 +1413,7 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 <tr key={item.id}>
                                     <td>{item.agent}</td>
                                     <td>{item.name}</td>
+                                    <td>{item.jobOrderNo}</td>
                                     <td>{item.plan}</td>
                                     <td>{formatDate(item.activationDate)}</td>
                                     <td>₱{item.commission.toLocaleString()}</td>
@@ -1408,7 +1440,7 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={7} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
+                                    <td colSpan={8} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
                                 </tr>
                             )}
                         </tbody>
