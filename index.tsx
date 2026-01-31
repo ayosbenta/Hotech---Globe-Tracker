@@ -17,7 +17,9 @@ const residentialPlans = [
 // --- HELPERS ---
 const getPlanPrice = (plan) => {
     if (!plan) return 0;
-    const match = plan.match(/(\d+)/);
+    // Ensure plan is a string to prevent .match crashes
+    const planStr = String(plan);
+    const match = planStr.match(/(\d+)/);
     return match ? parseInt(match[0], 10) : 0;
 };
 
@@ -85,7 +87,7 @@ const ICONS = {
     subscribers: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
     performance: "M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.09-4-4L2 17.08l1.5 1.41z",
     payout: "M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z",
-    accounting: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z",
+    accounting: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z",
     logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
     menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
 };
@@ -472,6 +474,58 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
         return { totalSales, conversionRate, pendingPayouts, onRequestPayouts, completedPayouts, grossIncome, totalCompletedCommission };
     }, [visibleSubscribers, currentUser.role]);
 
+    // Additional Stats including Last Month & Payout Amounts
+    const additionalStats = useMemo(() => {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-11
+        
+        let lastMonthYear = currentYear;
+        let lastMonthIndex = currentMonth - 1;
+        if (lastMonthIndex < 0) {
+            lastMonthIndex = 11;
+            lastMonthYear = currentYear - 1;
+        }
+
+        let salesLastMonth = 0;
+        let commissionLastMonth = 0;
+        let totalCancelled = 0;
+        let pendingPayoutCount = 0;
+        let pendingPayoutAmount = 0;
+
+        visibleSubscribers.forEach(sub => {
+            if (sub.status === 'Cancelled') {
+                totalCancelled++;
+            }
+
+            if (sub.status === 'Installed') {
+                const pStatus = sub.payoutStatus || 'Pending';
+                if (pStatus === 'Pending') {
+                    pendingPayoutCount++;
+                    pendingPayoutAmount += calculateCommission(sub.plan);
+                }
+
+                if (sub.activationDate) {
+                    const actDate = new Date(sub.activationDate);
+                    if (!isNaN(actDate.getTime())) {
+                        if (actDate.getFullYear() === lastMonthYear && actDate.getMonth() === lastMonthIndex) {
+                            salesLastMonth++;
+                            commissionLastMonth += calculateCommission(sub.plan);
+                        }
+                    }
+                }
+            }
+        });
+
+        return {
+            salesLastMonth,
+            commissionLastMonth,
+            totalCancelled,
+            pendingPayoutCount,
+            pendingPayoutAmount
+        };
+    }, [visibleSubscribers]);
+
     const chartData = useMemo(() => {
         const now = new Date();
         const data = { labels: [], commissions: [], expenses: [] };
@@ -579,11 +633,21 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                     </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">{agentPerformance.totalSales}</div>
-                        <div className="stat-label">Total Installed</div>
+                        <div className="stat-label">Total Installed (This Month)</div>
+                    </div>
+                     <div className="overview-stat-card">
+                        <div className="stat-value">{additionalStats.salesLastMonth}</div>
+                        <div className="stat-label">Total Installed (Last Month)</div>
                     </div>
                     <div className="overview-stat-card">
-                        <div className="stat-value">{agentPerformance.pendingPayouts}</div>
-                        <div className="stat-label">Pending Payout</div>
+                        <div className="stat-value">₱{additionalStats.commissionLastMonth.toLocaleString()}</div>
+                        <div className="stat-label">Commission (Last Month)</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">
+                            {additionalStats.pendingPayoutCount} <span style={{fontSize: '0.6em', color: 'var(--text-secondary)'}}>({additionalStats.pendingPayoutAmount.toLocaleString()})</span>
+                        </div>
+                        <div className="stat-label">Pending Payout (Qty & Amt)</div>
                     </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">{agentPerformance.onRequestPayouts}</div>
@@ -592,6 +656,10 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                      <div className="overview-stat-card">
                         <div className="stat-value">{agentPerformance.completedPayouts}</div>
                         <div className="stat-label">Total Completed Payout</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{additionalStats.totalCancelled}</div>
+                        <div className="stat-label">Total Cancelled</div>
                     </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">{agentPerformance.conversionRate.toFixed(1)}%</div>
@@ -616,9 +684,28 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
                         <div className="stat-value">{totalSalesThisMonth}</div>
                         <div className="stat-label">Total Sales This Month</div>
                     </div>
+                     <div className="overview-stat-card">
+                        <div className="stat-value">{additionalStats.salesLastMonth}</div>
+                        <div className="stat-label">Total Sales Last Month</div>
+                    </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">₱{totalCommissions.toLocaleString()}</div>
                         <div className="stat-label">Total Commissions This Month</div>
+                    </div>
+                     <div className="overview-stat-card">
+                        <div className="stat-value">₱{additionalStats.commissionLastMonth.toLocaleString()}</div>
+                        <div className="stat-label">Total Commissions Last Month</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">{additionalStats.totalCancelled}</div>
+                        <div className="stat-label">Total Cancelled</div>
+                    </div>
+                    <div className="overview-stat-card">
+                        <div className="stat-value">
+                             {additionalStats.pendingPayoutCount}
+                             <div style={{fontSize: '0.4em', color: 'var(--text-secondary)', marginTop: '5px'}}>₱{additionalStats.pendingPayoutAmount.toLocaleString()}</div>
+                        </div>
+                        <div className="stat-label">Pending Payout (No. & Amt)</div>
                     </div>
                     <div className="overview-stat-card">
                         <div className="stat-value">{topAgent.name}</div>
@@ -1782,7 +1869,7 @@ const App = () => {
                     jobOrderNo: item.jobOrderNo || '',
                     accountNumber: item.accountNumber || '',
                     link: item.link || '',
-                    plan: item.plan || '',
+                    plan: String(item.plan || ''), // Ensure plan is string
                     activationDate: normalizeDateToYYYYMMDD(item.activationDate),
                     agent: item.agent || '',
                     encoder: item.encoder || '',
