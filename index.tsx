@@ -90,6 +90,7 @@ const ICONS = {
     accounting: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z",
     logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
     menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
+    calendar: "M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"
 };
 
 // --- COMPONENTS ---
@@ -163,6 +164,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
         { name: 'Agent Performance', icon: 'performance', roles: ['admin'] },
         { name: 'Payout Reports', icon: 'payout', roles: ['admin', 'agent'] },
         { name: 'Accounting & Financial', icon: 'accounting', roles: ['admin'] },
+        { name: 'Calendar', icon: 'calendar', roles: ['admin'] },
     ];
 
     const handleMenuClick = (menuName) => {
@@ -1803,6 +1805,92 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
     );
 };
 
+const CalendarView = ({ subscribers }) => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+    const [selectedYear, setSelectedYear] = useState(currentYear);
+
+    const calendarData = useMemo(() => {
+        const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+        const data = [];
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            // Registered: based on dateOfApplication
+            const registeredCount = subscribers.filter(sub => sub.dateOfApplication === dateStr).length;
+            
+            // Installed: based on activationDate and status 'Installed'
+            const installedCount = subscribers.filter(sub => sub.status === 'Installed' && sub.activationDate === dateStr).length;
+
+            data.push({
+                day,
+                dateStr,
+                registeredCount,
+                installedCount
+            });
+        }
+        return data;
+    }, [subscribers, selectedMonth, selectedYear]);
+
+    // Calculate totals
+    const totalRegistered = calendarData.reduce((sum, day) => sum + day.registeredCount, 0);
+    const totalInstalled = calendarData.reduce((sum, day) => sum + day.installedCount, 0);
+
+    return (
+        <div>
+            <h1>Calendar</h1>
+            <div className="card">
+                <div className="report-filters no-print">
+                     <div className="form-group">
+                        <label>Month</label>
+                        <select className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
+                            {Array.from({length: 12}, (_, i) => <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>)}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Year</label>
+                        <input className="form-control" type="number" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} />
+                    </div>
+                </div>
+
+                <div className="table-responsive-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Date</th>
+                                <th style={{textAlign: 'center'}}>Registered</th>
+                                <th style={{textAlign: 'center'}}>Installed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {calendarData.map(row => {
+                                const dateObj = new Date(row.dateStr);
+                                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                                return (
+                                    <tr key={row.day} style={isWeekend ? {backgroundColor: 'rgba(0,0,0,0.02)'} : {}}>
+                                        <td>{row.day}</td>
+                                        <td>{dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</td>
+                                        <td style={{textAlign: 'center', fontWeight: row.registeredCount > 0 ? 'bold' : 'normal', color: row.registeredCount > 0 ? 'var(--primary-brand)' : 'inherit'}}>{row.registeredCount}</td>
+                                        <td style={{textAlign: 'center', fontWeight: row.installedCount > 0 ? 'bold' : 'normal', color: row.installedCount > 0 ? 'var(--accent-green)' : 'inherit'}}>{row.installedCount}</td>
+                                    </tr>
+                                );
+                            })}
+                             <tr style={{backgroundColor: '#e6f0ff', fontWeight: 'bold'}}>
+                                <td colSpan={2}>Total</td>
+                                <td style={{textAlign: 'center', color: 'var(--primary-brand)'}}>{totalRegistered}</td>
+                                <td style={{textAlign: 'center', color: 'var(--accent-green)'}}>{totalInstalled}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const App = () => {
     const [currentUser, setCurrentUser] = useState(() => {
@@ -2038,6 +2126,7 @@ const App = () => {
             case 'Agent Performance': return <AgentPerformance subscribers={subscribers} agents={agents} />;
             case 'Payout Reports': return <PayoutReports subscribers={subscribers} agents={agents} currentUser={currentUser} onSaveSubscriber={handleSaveSubscriber} />;
             case 'Accounting & Financial': return <AccountingFinancial subscribers={subscribers} expenses={expenses} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} />;
+            case 'Calendar': return <CalendarView subscribers={subscribers} />;
             default: return <Overview subscribers={subscribers} expenses={expenses} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
         }
     };
@@ -2045,7 +2134,7 @@ const App = () => {
     useEffect(() => {
         if (!currentUser) return;
         const allowedMenusForRole = {
-            admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Accounting & Financial'],
+            admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Accounting & Financial', 'Calendar'],
             agent: ['Overview', 'Subscribers', 'My Performance', 'Payout Reports'],
         };
         if (!allowedMenusForRole[currentUser.role].includes(activeMenu)) {
