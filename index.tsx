@@ -1811,10 +1811,14 @@ const CalendarView = ({ subscribers }) => {
     const [selectedMonth, setSelectedMonth] = useState(currentMonth);
     const [selectedYear, setSelectedYear] = useState(currentYear);
 
-    const calendarData = useMemo(() => {
+    const { calendarDays, emptySlots, totalRegistered, totalInstalled } = useMemo(() => {
         const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-        const data = [];
+        const firstDayIndex = new Date(selectedYear, selectedMonth - 1, 1).getDay(); // 0 = Sun, 1 = Mon...
         
+        const days = [];
+        let regTotal = 0;
+        let instTotal = 0;
+
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             
@@ -1824,25 +1828,32 @@ const CalendarView = ({ subscribers }) => {
             // Installed: based on activationDate and status 'Installed'
             const installedCount = subscribers.filter(sub => sub.status === 'Installed' && sub.activationDate === dateStr).length;
 
-            data.push({
+            regTotal += registeredCount;
+            instTotal += installedCount;
+
+            days.push({
                 day,
                 dateStr,
                 registeredCount,
                 installedCount
             });
         }
-        return data;
+
+        return { 
+            calendarDays: days, 
+            emptySlots: firstDayIndex,
+            totalRegistered: regTotal,
+            totalInstalled: instTotal
+        };
     }, [subscribers, selectedMonth, selectedYear]);
 
-    // Calculate totals
-    const totalRegistered = calendarData.reduce((sum, day) => sum + day.registeredCount, 0);
-    const totalInstalled = calendarData.reduce((sum, day) => sum + day.installedCount, 0);
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return (
         <div>
             <h1>Calendar</h1>
             <div className="card">
-                <div className="report-filters no-print">
+                <div className="report-filters no-print" style={{ marginBottom: '1.5rem' }}>
                      <div className="form-group">
                         <label>Month</label>
                         <select className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
@@ -1855,36 +1866,89 @@ const CalendarView = ({ subscribers }) => {
                     </div>
                 </div>
 
-                <div className="table-responsive-wrapper">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Day</th>
-                                <th>Date</th>
-                                <th style={{textAlign: 'center'}}>Registered</th>
-                                <th style={{textAlign: 'center'}}>Installed</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {calendarData.map(row => {
-                                const dateObj = new Date(row.dateStr);
-                                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                                return (
-                                    <tr key={row.day} style={isWeekend ? {backgroundColor: 'rgba(0,0,0,0.02)'} : {}}>
-                                        <td>{row.day}</td>
-                                        <td>{dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</td>
-                                        <td style={{textAlign: 'center', fontWeight: row.registeredCount > 0 ? 'bold' : 'normal', color: row.registeredCount > 0 ? 'var(--primary-brand)' : 'inherit'}}>{row.registeredCount}</td>
-                                        <td style={{textAlign: 'center', fontWeight: row.installedCount > 0 ? 'bold' : 'normal', color: row.installedCount > 0 ? 'var(--accent-green)' : 'inherit'}}>{row.installedCount}</td>
-                                    </tr>
-                                );
-                            })}
-                             <tr style={{backgroundColor: '#e6f0ff', fontWeight: 'bold'}}>
-                                <td colSpan={2}>Total</td>
-                                <td style={{textAlign: 'center', color: 'var(--primary-brand)'}}>{totalRegistered}</td>
-                                <td style={{textAlign: 'center', color: 'var(--accent-green)'}}>{totalInstalled}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div className="calendar-wrapper" style={{ overflowX: 'auto' }}>
+                    <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(7, minmax(100px, 1fr))', 
+                        gap: '1px', 
+                        backgroundColor: 'var(--border-color)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        minWidth: '700px'
+                    }}>
+                        {/* Headers */}
+                        {weekDays.map(day => (
+                            <div key={day} style={{ 
+                                backgroundColor: '#f9fafb', 
+                                padding: '10px', 
+                                textAlign: 'center', 
+                                fontWeight: '600', 
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.85rem'
+                            }}>
+                                {day}
+                            </div>
+                        ))}
+
+                        {/* Empty Slots */}
+                        {Array.from({ length: emptySlots }).map((_, i) => (
+                            <div key={`empty-${i}`} style={{ backgroundColor: 'white', minHeight: '100px' }}></div>
+                        ))}
+
+                        {/* Days */}
+                        {calendarDays.map(item => (
+                            <div key={item.day} style={{ 
+                                backgroundColor: 'white', 
+                                padding: '8px', 
+                                minHeight: '100px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                position: 'relative'
+                            }}>
+                                <span style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-primary)' }}>{item.day}</span>
+                                
+                                {(item.registeredCount > 0 || item.installedCount > 0) && (
+                                    <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.75rem' }}>
+                                        {item.registeredCount > 0 && (
+                                            <div style={{ 
+                                                backgroundColor: 'var(--primary-brand-light)', 
+                                                color: 'var(--primary-brand)', 
+                                                padding: '2px 6px', 
+                                                borderRadius: '4px',
+                                                fontWeight: '500'
+                                            }}>
+                                                Registered: {item.registeredCount}
+                                            </div>
+                                        )}
+                                        {item.installedCount > 0 && (
+                                            <div style={{ 
+                                                backgroundColor: '#d1fae5', 
+                                                color: '#065f46', 
+                                                padding: '2px 6px', 
+                                                borderRadius: '4px',
+                                                fontWeight: '500'
+                                            }}>
+                                                Installed: {item.installedCount}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                 <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <div style={{textAlign: 'center'}}>
+                        <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>Total Registered</div>
+                        <div style={{fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary-brand)'}}>{totalRegistered}</div>
+                    </div>
+                    <div style={{textAlign: 'center'}}>
+                        <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>Total Installed</div>
+                        <div style={{fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--accent-green)'}}>{totalInstalled}</div>
+                    </div>
                 </div>
             </div>
         </div>
