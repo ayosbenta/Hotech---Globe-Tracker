@@ -80,11 +80,17 @@ const normalizeDateToYYYYMMDD = (sheetDate) => {
 
 const payoutStatusBadgeStyle = (status) => ({
     backgroundColor: 
-        status === 'Completed' ? 'var(--accent-green)' :
-        status === 'Pending' ? 'var(--accent-yellow)' :
-        status === 'On Request' ? 'var(--accent-blue)' :
-        status === 'Rejected' ? 'var(--accent-red)' :
-        '#6c757d',
+        status === 'Completed' ? 'var(--accent-green-bg)' :
+        status === 'Pending' ? 'var(--accent-yellow-bg)' :
+        status === 'On Request' ? 'var(--accent-blue-bg)' :
+        status === 'Rejected' ? 'var(--accent-red-bg)' :
+        '#f3f4f6',
+    color: 
+        status === 'Completed' ? 'var(--accent-green-text)' :
+        status === 'Pending' ? 'var(--accent-yellow-text)' :
+        status === 'On Request' ? 'var(--accent-blue-text)' :
+        status === 'Rejected' ? 'var(--accent-red-text)' :
+        '#6b7280',
 });
 
 // --- SVG ICONS ---
@@ -237,7 +243,6 @@ const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
     );
 };
 
-// ... [LineChart Component remains unchanged]
 const LineChart = ({ labels, datasets }) => {
     const containerRef = useRef(null);
     const [tooltip, setTooltip] = useState(null);
@@ -297,10 +302,19 @@ const LineChart = ({ labels, datasets }) => {
         <div className="line-chart-container" ref={containerRef}>
             {containerWidth > 0 && (
                  <svg className="line-chart-svg" width="100%" height={height}>
+                    <defs>
+                        {datasets.map((ds, i) => (
+                            <linearGradient key={ds.name} id={`gradient-${i}`} x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stopColor={ds.color} stopOpacity="0.2"/>
+                                <stop offset="100%" stopColor={ds.color} stopOpacity="0"/>
+                            </linearGradient>
+                        ))}
+                    </defs>
+
                     <g className="y-axis">
                         {yAxisLabels.map(({ value, y }) => (
                             <g key={value}>
-                                <text x={padding.left - 10} y={y} dy="0.32em" textAnchor="end" className="axis-label">
+                                <text x={padding.left - 15} y={y} dy="0.32em" textAnchor="end" className="axis-label">
                                     {value / 1000}k
                                 </text>
                                 <line x1={padding.left} x2={containerWidth - padding.right} y1={y} y2={y} className="grid-line" />
@@ -312,21 +326,30 @@ const LineChart = ({ labels, datasets }) => {
                         {labels.map((label, index) => {
                              const showLabel = labels.length <= 12 || index % Math.ceil(labels.length / 12) === 0;
                             return showLabel && (
-                                <text key={label} x={getX(index)} y={height - padding.bottom + 20} textAnchor="middle" className="axis-label">
+                                <text key={label} x={getX(index)} y={height - padding.bottom + 25} textAnchor="middle" className="axis-label">
                                     {label}
                                 </text>
                             )
                         })}
                     </g>
 
-                    {datasets.map(ds => (
-                        <path
-                            key={ds.name}
-                            className="data-line"
-                            stroke={ds.color}
-                            d={ds.data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${getX(index)} ${getY(point)}`).join(' ')}
-                        />
-                    ))}
+                    {datasets.map((ds, i) => {
+                        // Create area path
+                        const areaPath = `
+                            M ${getX(0)} ${height - padding.bottom}
+                            ${ds.data.map((point, index) => `L ${getX(index)} ${getY(point)}`).join(' ')}
+                            L ${getX(ds.data.length - 1)} ${height - padding.bottom}
+                            Z
+                        `;
+                        const linePath = ds.data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${getX(index)} ${getY(point)}`).join(' ');
+
+                        return (
+                            <g key={ds.name}>
+                                <path d={areaPath} fill={`url(#gradient-${i})`} />
+                                <path className="data-line" stroke={ds.color} d={linePath} />
+                            </g>
+                        );
+                    })}
 
                      {labels.map((_, index) => (
                         <g key={index} className="data-point-group" onMouseOver={(e) => handleMouseOver(e, index)} onMouseOut={handleMouseOut}>
@@ -354,7 +377,6 @@ const LineChart = ({ labels, datasets }) => {
     );
 };
 
-// ... [Pagination Component remains unchanged]
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
 
@@ -371,7 +393,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                 className="pagination-button"
                 aria-label="Previous page"
             >
-                &laquo; Prev
+                &laquo;
             </button>
             {pageNumbers.map(number => (
                 <button
@@ -389,13 +411,12 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                 className="pagination-button"
                 aria-label="Next page"
             >
-                Next &raquo;
+                &raquo;
             </button>
         </nav>
     );
 };
 
-// ... [Overview Component remains unchanged]
 const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) => {
     const { totalSalesThisMonth, totalCommissions, topAgent } = overviewPerformance;
     const [activeTab, setActiveTab] = useState('Monthly');
@@ -446,15 +467,25 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
 
     const statusBadgeStyle = (status) => ({
         backgroundColor:
-            status === 'Installed' ? 'var(--accent-green)' :
-            status === 'Pending' ? 'var(--accent-yellow)' :
-            status === 'On The Way' ? 'var(--accent-blue)' :
-            status === 'TRANSMITTED' ? '#8b5cf6' :
-            status === 'with JOB Order' ? '#06b6d4' :
-            status === 'ONGOING' ? '#f97316' :
-            status === 'Cancelled' ? 'var(--accent-red)' :
-            status === 'Reject' ? 'var(--accent-gray)' :
-            '#6c757d',
+            status === 'Installed' ? 'var(--accent-green-bg)' :
+            status === 'Pending' ? 'var(--accent-yellow-bg)' :
+            status === 'On The Way' ? 'var(--accent-blue-bg)' :
+            status === 'TRANSMITTED' ? 'var(--accent-purple-bg)' :
+            status === 'with JOB Order' ? '#cffafe' :
+            status === 'ONGOING' ? '#ffedd5' :
+            status === 'Cancelled' ? 'var(--accent-red-bg)' :
+            status === 'Reject' ? '#f3f4f6' :
+            '#f3f4f6',
+        color:
+            status === 'Installed' ? 'var(--accent-green-text)' :
+            status === 'Pending' ? 'var(--accent-yellow-text)' :
+            status === 'On The Way' ? 'var(--accent-blue-text)' :
+            status === 'TRANSMITTED' ? 'var(--accent-purple-text)' :
+            status === 'with JOB Order' ? '#0e7490' :
+            status === 'ONGOING' ? '#c2410c' :
+            status === 'Cancelled' ? 'var(--accent-red-text)' :
+            status === 'Reject' ? '#374151' :
+            '#374151',
     });
 
 
@@ -847,7 +878,50 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
     );
 };
 
-// ... [SubscriberModal, Subscribers, MyPerformance, AgentPerformance, RejectionReasonModal, PayoutReports, PieChart, ExpenseModal, AccountingFinancial, CalendarView components remain unchanged]
+const PieChart = ({ data }) => {
+    const colors = ['var(--primary-brand)', 'var(--accent-green)', 'var(--accent-yellow)', 'var(--accent-red)', '#8b5cf6'];
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    if (total === 0) return <p>No data to display.</p>;
+    
+    let cumulativePercent = 0;
+    const slices = data.map((item, index) => {
+        const percent = (item.value / total) * 100;
+        const startAngle = (cumulativePercent / 100) * 360;
+        const endAngle = ((cumulativePercent + percent) / 100) * 360;
+        cumulativePercent += percent;
+
+        const getCoords = (angle) => {
+            const radians = (angle - 90) * Math.PI / 180;
+            return [50 + 40 * Math.cos(radians), 50 + 40 * Math.sin(radians)];
+        };
+
+        const [startX, startY] = getCoords(startAngle);
+        const [endX, endY] = getCoords(endAngle);
+        const largeArcFlag = percent > 50 ? 1 : 0;
+        
+        const pathData = `M 50,50 L ${startX},${startY} A 40,40 0 ${largeArcFlag},1 ${endX},${endY} Z`;
+
+        return <path key={item.name} d={pathData} fill={colors[index % colors.length]} stroke="white" strokeWidth="1" />;
+    });
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
+            <svg viewBox="0 0 100 100" width="200" height="200" style={{flexShrink: 0}}>
+                {slices}
+                <circle cx="50" cy="50" r="25" fill="var(--content-bg)" />
+            </svg>
+            <div>
+                {data.map((item, index) => (
+                    <div key={item.name} style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ height: '1rem', width: '1rem', backgroundColor: colors[index % colors.length], marginRight: '0.5rem', borderRadius: '4px' }}></span>
+                        <span style={{fontSize: '0.9rem', color: 'var(--text-primary)'}}>{item.name}: <strong>{item.value}</strong> <span style={{color: 'var(--text-secondary)'}}>({((item.value/total)*100).toFixed(1)}%)</span></span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, currentUser }) => {
     const initialFormState = {
         dateOfApplication: new Date().toISOString().split('T')[0],
@@ -1041,16 +1115,26 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
     };
     
     const statusBadgeStyle = (status) => ({
-        backgroundColor: 
-            status === 'Installed' ? 'var(--accent-green)' :
-            status === 'Pending' ? 'var(--accent-yellow)' :
-            status === 'On The Way' ? 'var(--accent-blue)' :
-            status === 'TRANSMITTED' ? '#8b5cf6' :
-            status === 'with JOB Order' ? '#06b6d4' :
-            status === 'ONGOING' ? '#f97316' :
-            status === 'Cancelled' ? 'var(--accent-red)' :
-            status === 'Reject' ? 'var(--accent-gray)' :
-            '#6c757d',
+        backgroundColor:
+            status === 'Installed' ? 'var(--accent-green-bg)' :
+            status === 'Pending' ? 'var(--accent-yellow-bg)' :
+            status === 'On The Way' ? 'var(--accent-blue-bg)' :
+            status === 'TRANSMITTED' ? 'var(--accent-purple-bg)' :
+            status === 'with JOB Order' ? '#cffafe' :
+            status === 'ONGOING' ? '#ffedd5' :
+            status === 'Cancelled' ? 'var(--accent-red-bg)' :
+            status === 'Reject' ? '#f3f4f6' :
+            '#f3f4f6',
+        color:
+            status === 'Installed' ? 'var(--accent-green-text)' :
+            status === 'Pending' ? 'var(--accent-yellow-text)' :
+            status === 'On The Way' ? 'var(--accent-blue-text)' :
+            status === 'TRANSMITTED' ? 'var(--accent-purple-text)' :
+            status === 'with JOB Order' ? '#0e7490' :
+            status === 'ONGOING' ? '#c2410c' :
+            status === 'Cancelled' ? 'var(--accent-red-text)' :
+            status === 'Reject' ? '#374151' :
+            '#374151',
     });
 
     return (
@@ -1579,47 +1663,6 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
     );
 };
 
-const PieChart = ({ data }) => {
-    const colors = ['var(--primary-brand)', 'var(--accent-green)', 'var(--accent-yellow)', 'var(--accent-red)', '#8b5cf6'];
-    const total = data.reduce((sum, item) => sum + item.value, 0);
-    if (total === 0) return <p>No data to display.</p>;
-    
-    let cumulativePercent = 0;
-    const slices = data.map((item, index) => {
-        const percent = (item.value / total) * 100;
-        const startAngle = (cumulativePercent / 100) * 360;
-        const endAngle = ((cumulativePercent + percent) / 100) * 360;
-        cumulativePercent += percent;
-
-        const getCoords = (angle) => {
-            const radians = (angle - 90) * Math.PI / 180;
-            return [50 + 40 * Math.cos(radians), 50 + 40 * Math.sin(radians)];
-        };
-
-        const [startX, startY] = getCoords(startAngle);
-        const [endX, endY] = getCoords(endAngle);
-        const largeArcFlag = percent > 50 ? 1 : 0;
-        
-        const pathData = `M 50,50 L ${startX},${startY} A 40,40 0 ${largeArcFlag},1 ${endX},${endY} Z`;
-
-        return <path key={item.name} d={pathData} fill={colors[index % colors.length]} />;
-    });
-
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
-            <svg viewBox="0 0 100 100" width="200" height="200" style={{flexShrink: 0}}>{slices}</svg>
-            <div>
-                {data.map((item, index) => (
-                    <div key={item.name} style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <span style={{ height: '1rem', width: '1rem', backgroundColor: colors[index % colors.length], marginRight: '0.5rem', borderRadius: '3px' }}></span>
-                        <span>{item.name}: {item.value} ({((item.value/total)*100).toFixed(1)}%)</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 const ExpenseModal = ({ isOpen, onClose, onSave, expense }) => {
     const expenseCategories = ['Marketing', 'Office Supplies', 'Travel', 'Utilities', 'Others'];
     const initialFormState = {
@@ -1683,7 +1726,6 @@ const ExpenseModal = ({ isOpen, onClose, onSave, expense }) => {
         </div>
     );
 };
-
 
 const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExpense }) => {
     const currentYear = new Date().getFullYear();
@@ -1773,7 +1815,7 @@ const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExp
                     <div className="stat-label">Total Expenses</div>
                 </div>
                  <div className="stat-card">
-                    <div className="stat-value" style={{color: financialData.netRevenue >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}}>
+                    <div className="stat-value" style={{color: financialData.netRevenue >= 0 ? 'var(--accent-green-text)' : 'var(--accent-red-text)'}}>
                         ₱{financialData.netRevenue.toLocaleString()}
                     </div>
                     <div className="stat-label">Net Revenue</div>
@@ -1980,16 +2022,13 @@ const CalendarView = ({ subscribers }) => {
                     </div>
                     <div style={{textAlign: 'center'}}>
                         <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>Total Installed</div>
-                        <div style={{fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--accent-green)'}}>{totalInstalled}</div>
+                        <div style={{fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--accent-green-text)'}}>{totalInstalled}</div>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
-
-
-// --- KNOWLEDGE BASE COMPONENTS ---
 
 const KnowledgeBaseFolderModal = ({ isOpen, onClose, onSave, folder }) => {
     const [name, setName] = useState('');
@@ -2358,60 +2397,9 @@ const App = () => {
     const [error, setError] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Knowledge Base State (Persisted in localStorage)
-    const [kbFolders, setKbFolders] = useState(() => {
-        try {
-            const saved = localStorage.getItem('kbFolders');
-            return saved ? JSON.parse(saved) : [];
-        } catch { return []; }
-    });
-    const [kbContents, setKbContents] = useState(() => {
-        try {
-            const saved = localStorage.getItem('kbContents');
-            return saved ? JSON.parse(saved) : [];
-        } catch { return []; }
-    });
-
-    useEffect(() => {
-        localStorage.setItem('kbFolders', JSON.stringify(kbFolders));
-    }, [kbFolders]);
-
-    useEffect(() => {
-        localStorage.setItem('kbContents', JSON.stringify(kbContents));
-    }, [kbContents]);
-
-    const handleSaveKbFolder = (folderData) => {
-        setKbFolders(prev => {
-            const index = prev.findIndex(f => f.id === folderData.id);
-            if (index >= 0) {
-                const updated = [...prev];
-                updated[index] = folderData;
-                return updated;
-            }
-            return [...prev, folderData];
-        });
-    };
-
-    const handleDeleteKbFolder = (id) => {
-        setKbFolders(prev => prev.filter(f => f.id !== id));
-        setKbContents(prev => prev.filter(c => c.folderId !== id)); // Cascade delete contents
-    };
-
-    const handleSaveKbContent = (contentData) => {
-        setKbContents(prev => {
-            const index = prev.findIndex(c => c.id === contentData.id);
-            if (index >= 0) {
-                const updated = [...prev];
-                updated[index] = contentData;
-                return updated;
-            }
-            return [...prev, contentData];
-        });
-    };
-
-    const handleDeleteKbContent = (id) => {
-        setKbContents(prev => prev.filter(c => c.id !== id));
-    };
+    // Knowledge Base State
+    const [kbFolders, setKbFolders] = useState([]);
+    const [kbContents, setKbContents] = useState([]);
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -2431,6 +2419,90 @@ const App = () => {
         }
     }, [isSidebarOpen]);
     
+    const saveDataToSheet = async (dataToSave, sheetName) => {
+        setIsSaving(true);
+        try {
+            const dataForSheet = JSON.parse(JSON.stringify(dataToSave));
+
+            if (sheetName === 'Globe Sales Tracker Data') {
+                dataForSheet.forEach(item => {
+                    item.dateOfApplication = formatDateForSheet(item.dateOfApplication);
+                    item.activationDate = formatDateForSheet(item.activationDate);
+                    // Ensure payoutStatus is set for saving
+                    if (!item.payoutStatus) item.payoutStatus = 'Pending';
+                    if (!item.payoutRejectionReason) item.payoutRejectionReason = '';
+                });
+            } else if (sheetName === 'Expenses') {
+                dataForSheet.forEach(item => {
+                    item.date = formatDateForSheet(item.date);
+                });
+            }
+
+            const payload = {
+                sheetName: sheetName,
+                data: dataForSheet,
+            };
+
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (result.status !== 'success') {
+                throw new Error(result.message || `Unknown error saving to ${sheetName}.`);
+            }
+        } catch (e) {
+            console.error(`Failed to save data to ${sheetName}:`, e);
+            setError(`Failed to save changes to ${sheetName}. Your latest changes might not be stored.`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSaveKbFolder = async (folderData) => {
+        let updatedFolders;
+        const index = kbFolders.findIndex(f => f.id === folderData.id);
+        if (index >= 0) {
+            updatedFolders = kbFolders.map(f => f.id === folderData.id ? folderData : f);
+        } else {
+            updatedFolders = [...kbFolders, folderData];
+        }
+        setKbFolders(updatedFolders);
+        await saveDataToSheet(updatedFolders, 'Knowledge Base Folders');
+    };
+
+    const handleDeleteKbFolder = async (id) => {
+        const updatedFolders = kbFolders.filter(f => f.id !== id);
+        setKbFolders(updatedFolders);
+        await saveDataToSheet(updatedFolders, 'Knowledge Base Folders');
+        
+        // Also delete contents for this folder
+        const updatedContents = kbContents.filter(c => c.folderId !== id);
+        setKbContents(updatedContents);
+        await saveDataToSheet(updatedContents, 'Knowledge Base Content');
+    };
+
+    const handleSaveKbContent = async (contentData) => {
+        let updatedContents;
+        const index = kbContents.findIndex(c => c.id === contentData.id);
+        if (index >= 0) {
+            updatedContents = kbContents.map(c => c.id === contentData.id ? contentData : c);
+        } else {
+            updatedContents = [...kbContents, contentData];
+        }
+        setKbContents(updatedContents);
+        await saveDataToSheet(updatedContents, 'Knowledge Base Content');
+    };
+
+    const handleDeleteKbContent = async (id) => {
+        const updatedContents = kbContents.filter(c => c.id !== id);
+        setKbContents(updatedContents);
+        await saveDataToSheet(updatedContents, 'Knowledge Base Content');
+    };
+
     useEffect(() => {
         if (!currentUser) {
             setIsLoading(false);
@@ -2480,6 +2552,22 @@ const App = () => {
                 }));
                 setExpenses(processedExpenses);
 
+                // Fetch Knowledge Base Data
+                const processedKbFolders = (data.kbFolders || []).map((item) => ({
+                    id: item.id ? (isNaN(Number(item.id)) ? item.id : Number(item.id)) : Date.now(),
+                    name: item.name || ''
+                }));
+                setKbFolders(processedKbFolders);
+
+                const processedKbContents = (data.kbContents || []).map((item) => ({
+                    id: item.id ? (isNaN(Number(item.id)) ? item.id : Number(item.id)) : Date.now(),
+                    folderId: item.folderId ? (isNaN(Number(item.folderId)) ? item.folderId : Number(item.folderId)) : null,
+                    title: item.title || '',
+                    imageUrl: item.imageUrl || '',
+                    description: item.description || ''
+                }));
+                setKbContents(processedKbContents);
+
             } catch (e) {
                 console.error("Failed to fetch data from Google Sheets:", e);
                 setError("Failed to load data. Please check the Google Sheet and script configuration.");
@@ -2490,49 +2578,6 @@ const App = () => {
 
         fetchData();
     }, [currentUser]);
-    
-    const saveDataToSheet = async (dataToSave, sheetName) => {
-        setIsSaving(true);
-        try {
-            const dataForSheet = JSON.parse(JSON.stringify(dataToSave));
-
-            if (sheetName === 'Globe Sales Tracker Data') {
-                dataForSheet.forEach(item => {
-                    item.dateOfApplication = formatDateForSheet(item.dateOfApplication);
-                    item.activationDate = formatDateForSheet(item.activationDate);
-                    // Ensure payoutStatus is set for saving
-                    if (!item.payoutStatus) item.payoutStatus = 'Pending';
-                    if (!item.payoutRejectionReason) item.payoutRejectionReason = '';
-                });
-            } else if (sheetName === 'Expenses') {
-                dataForSheet.forEach(item => {
-                    item.date = formatDateForSheet(item.date);
-                });
-            }
-
-            const payload = {
-                sheetName: sheetName,
-                data: dataForSheet,
-            };
-
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8',
-                },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-            if (result.status !== 'success') {
-                throw new Error(result.message || `Unknown error saving to ${sheetName}.`);
-            }
-        } catch (e) {
-            console.error(`Failed to save data to ${sheetName}:`, e);
-            setError(`Failed to save changes to ${sheetName}. Your latest changes might not be stored.`);
-        } finally {
-            setIsSaving(false);
-        }
-    };
 
     const handleSaveSubscriber = async (subscriberData) => {
         let updatedSubscribers;
@@ -2657,7 +2702,7 @@ const App = () => {
         return <div className="loading-container">Loading data from Google Sheets...</div>;
     }
 
-    if (error && !subscribers.length && !expenses.length) { 
+    if (error && !subscribers.length && !expenses.length && !kbFolders.length) { 
         return <div className="error-container">{error}</div>;
     }
 
