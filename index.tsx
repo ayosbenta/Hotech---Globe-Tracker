@@ -6,7 +6,19 @@ import { createRoot } from 'react-dom/client';
 const GOOGLE_SCRIPT_URL: string = 'https://script.google.com/macros/s/AKfycbxQ-PTvW5vLirBLPv5RJ_ZX0EGuDgvzkHEU8ssSBQCuecqzp0xas7g4qzwsEIxBY3lc/exec';
 
 // --- MOCK DATA (for local development or as fallback) ---
-const initialAgents = ['Ryan', 'Leah', 'Jackie', 'Lyn', 'Mhine', 'Neri'];
+const initialAgents = [
+  'Ryan', 
+  'Leah', 
+  'Jackie', 
+  'Lyn', 
+  'Mhine', 
+  'Neri',
+  'Jacky - Boosting',
+  'Lyn - Boosting',
+  'Neri - Boosting',
+  'Jessa - Personal',
+  'Jessa - Boosting'
+];
 
 const residentialPlans = [
   'GFiber 1499 - 300Mbps',
@@ -429,6 +441,9 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
             status === 'Installed' ? 'var(--accent-green)' :
             status === 'Pending' ? 'var(--accent-yellow)' :
             status === 'On The Way' ? 'var(--accent-blue)' :
+            status === 'TRANSMITTED' ? '#8b5cf6' :
+            status === 'with JOB Order' ? '#06b6d4' :
+            status === 'ONGOING' ? '#f97316' :
             status === 'Cancelled' ? 'var(--accent-red)' :
             status === 'Reject' ? 'var(--accent-gray)' :
             '#6c757d',
@@ -937,6 +952,9 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                         <label htmlFor="status">Status</label>
                         <select id="status" name="status" className="form-control" value={formData.status} onChange={handleChange} required>
                             <option value="Pending">Pending</option>
+                            <option value="TRANSMITTED">TRANSMITTED</option>
+                            <option value="with JOB Order">with JOB Order</option>
+                            <option value="ONGOING">ONGOING</option>
                             <option value="On The Way">On The Way</option>
                             <option value="Installed">Installed</option>
                             <option value="Cancelled">Cancelled</option>
@@ -1018,6 +1036,9 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
             status === 'Installed' ? 'var(--accent-green)' :
             status === 'Pending' ? 'var(--accent-yellow)' :
             status === 'On The Way' ? 'var(--accent-blue)' :
+            status === 'TRANSMITTED' ? '#8b5cf6' :
+            status === 'with JOB Order' ? '#06b6d4' :
+            status === 'ONGOING' ? '#f97316' :
             status === 'Cancelled' ? 'var(--accent-red)' :
             status === 'Reject' ? 'var(--accent-gray)' :
             '#6c757d',
@@ -1061,6 +1082,9 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                     >
                         <option value="All">All Status</option>
                         <option value="Pending">Pending</option>
+                        <option value="TRANSMITTED">TRANSMITTED</option>
+                        <option value="with JOB Order">with JOB Order</option>
+                        <option value="ONGOING">ONGOING</option>
                         <option value="On The Way">On The Way</option>
                         <option value="Installed">Installed</option>
                         <option value="Cancelled">Cancelled</option>
@@ -1152,7 +1176,7 @@ const MyPerformance = ({ subscribers, currentUser }) => {
 
         const totalApplications = agentSubs.length;
         const installedSales = agentSubs.filter(sub => sub.status === 'Installed').length;
-        const pending = agentSubs.filter(sub => ['Pending', 'On The Way'].includes(sub.status)).length;
+        const pending = agentSubs.filter(sub => ['Pending', 'On The Way', 'TRANSMITTED', 'with JOB Order', 'ONGOING'].includes(sub.status)).length;
         const cancelledOrRejected = agentSubs.filter(sub => ['Cancelled', 'Reject'].includes(sub.status)).length;
         
         const totalCommission = agentSubs
@@ -1236,7 +1260,7 @@ const AgentPerformance = ({ subscribers, agents }) => {
 
             const totalApplications = agentSubs.length;
             const installedSales = agentSubs.filter(sub => sub.status === 'Installed').length;
-            const pending = agentSubs.filter(sub => ['Pending', 'On The Way'].includes(sub.status)).length;
+            const pending = agentSubs.filter(sub => ['Pending', 'On The Way', 'TRANSMITTED', 'with JOB Order', 'ONGOING'].includes(sub.status)).length;
             const cancelledOrRejected = agentSubs.filter(sub => ['Cancelled', 'Reject'].includes(sub.status)).length;
             
             const totalCommission = agentSubs
@@ -1901,9 +1925,9 @@ const CalendarView = ({ subscribers }) => {
                             <div key={item.day} style={{ 
                                 backgroundColor: 'white', 
                                 padding: '8px', 
-                                minHeight: '100px',
-                                display: 'flex',
-                                flexDirection: 'column',
+                                minHeight: '100px', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
                                 gap: '4px',
                                 position: 'relative'
                             }}>
