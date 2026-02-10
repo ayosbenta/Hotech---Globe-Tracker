@@ -88,8 +88,8 @@ const payoutStatusBadgeStyle = (status) => ({
 });
 
 // --- SVG ICONS ---
-const Icon = ({ path, className = '' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="http://www.w3.org/2000/svg" fill="currentColor" className={className} style={{ width: '1.25rem', height: '1.25rem' }}>
+const Icon = ({ path, className = '', style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="http://www.w3.org/2000/svg" fill="currentColor" className={className} style={{ width: '1.25rem', height: '1.25rem', ...style }}>
         <path d={path} />
     </svg>
 );
@@ -102,7 +102,11 @@ const ICONS = {
     accounting: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z",
     logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
     menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
-    calendar: "M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"
+    calendar: "M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z",
+    knowledgeBase: "M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z",
+    folder: "M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z",
+    arrowLeft: "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
+    image: "M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
 };
 
 // --- COMPONENTS ---
@@ -176,6 +180,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
         { name: 'Agent Performance', icon: 'performance', roles: ['admin'] },
         { name: 'Payout Reports', icon: 'payout', roles: ['admin', 'agent'] },
         { name: 'Accounting & Financial', icon: 'accounting', roles: ['admin'] },
+        { name: 'Knowledge Base', icon: 'knowledgeBase', roles: ['admin', 'agent'] },
         { name: 'Calendar', icon: 'calendar', roles: ['admin'] },
     ];
 
@@ -232,6 +237,7 @@ const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
     );
 };
 
+// ... [LineChart Component remains unchanged]
 const LineChart = ({ labels, datasets }) => {
     const containerRef = useRef(null);
     const [tooltip, setTooltip] = useState(null);
@@ -348,6 +354,7 @@ const LineChart = ({ labels, datasets }) => {
     );
 };
 
+// ... [Pagination Component remains unchanged]
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
 
@@ -388,6 +395,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     );
 };
 
+// ... [Overview Component remains unchanged]
 const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) => {
     const { totalSalesThisMonth, totalCommissions, topAgent } = overviewPerformance;
     const [activeTab, setActiveTab] = useState('Monthly');
@@ -839,6 +847,7 @@ const Overview = ({ subscribers, expenses, overviewPerformance, currentUser }) =
     );
 };
 
+// ... [SubscriberModal, Subscribers, MyPerformance, AgentPerformance, RejectionReasonModal, PayoutReports, PieChart, ExpenseModal, AccountingFinancial, CalendarView components remain unchanged]
 const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, currentUser }) => {
     const initialFormState = {
         dateOfApplication: new Date().toISOString().split('T')[0],
@@ -1980,6 +1989,356 @@ const CalendarView = ({ subscribers }) => {
 };
 
 
+// --- KNOWLEDGE BASE COMPONENTS ---
+
+const KnowledgeBaseFolderModal = ({ isOpen, onClose, onSave, folder }) => {
+    const [name, setName] = useState('');
+
+    useEffect(() => {
+        if (folder) {
+            setName(folder.name);
+        } else {
+            setName('');
+        }
+    }, [folder, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave({ id: folder ? folder.id : Date.now(), name });
+    };
+
+    return (
+        <div className="modal-backdrop">
+            <div className="modal-content">
+                <h2>{folder ? 'Edit Folder' : 'New Folder'}</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label htmlFor="folderName">Folder Name</label>
+                        <input 
+                            type="text" 
+                            id="folderName" 
+                            className="form-control" 
+                            value={name} 
+                            onChange={e => setName(e.target.value)} 
+                            required 
+                            autoFocus
+                        />
+                    </div>
+                    <div className="modal-actions">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const KnowledgeBaseContentModal = ({ isOpen, onClose, onSave, content, folderId }) => {
+    const initialFormState = {
+        title: '',
+        imageUrl: '',
+        description: ''
+    };
+    const [formData, setFormData] = useState(initialFormState);
+
+    useEffect(() => {
+        if (content) {
+            setFormData(content);
+        } else {
+            setFormData(initialFormState);
+        }
+    }, [content, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave({ 
+            ...formData, 
+            id: content ? content.id : Date.now(), 
+            folderId: content ? content.folderId : folderId 
+        });
+    };
+
+    return (
+        <div className="modal-backdrop">
+            <div className="modal-content">
+                <h2>{content ? 'Edit Content' : 'Add Content'}</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label htmlFor="title">Title</label>
+                        <input type="text" id="title" name="title" className="form-control" value={formData.title} onChange={handleChange} required />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="imageUrl">Image URL (Optional)</label>
+                        <input type="text" id="imageUrl" name="imageUrl" className="form-control" value={formData.imageUrl} onChange={handleChange} placeholder="https://example.com/image.jpg" />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="description">Description</label>
+                        <textarea id="description" name="description" className="form-control" value={formData.description} onChange={handleChange} required rows={6} />
+                    </div>
+                    <div className="modal-actions">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const KnowledgeBaseItemView = ({ isOpen, onClose, item }) => {
+    if (!isOpen || !item) return null;
+
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: '800px'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                    <h2 style={{margin: 0}}>{item.title}</h2>
+                    <button className="btn-icon" onClick={onClose}>
+                        <Icon path="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </button>
+                </div>
+                {item.imageUrl && (
+                    <div style={{marginBottom: '1.5rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)'}}>
+                        <img src={item.imageUrl} alt={item.title} style={{width: '100%', height: 'auto', display: 'block'}} />
+                    </div>
+                )}
+                <div style={{whiteSpace: 'pre-wrap', lineHeight: '1.6'}}>
+                    {item.description}
+                </div>
+                <div className="modal-actions">
+                    <button type="button" className="btn btn-primary" onClick={onClose}>Close</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const KnowledgeBase = ({ currentUser, folders, contents, onSaveFolder, onDeleteFolder, onSaveContent, onDeleteContent }) => {
+    const [activeFolderId, setActiveFolderId] = useState(null);
+    const [viewingItem, setViewingItem] = useState(null);
+    
+    // Modal states
+    const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+    const [editingFolder, setEditingFolder] = useState(null);
+    const [isContentModalOpen, setIsContentModalOpen] = useState(false);
+    const [editingContent, setEditingContent] = useState(null);
+
+    const activeFolder = folders.find(f => f.id === activeFolderId);
+    const activeContents = contents.filter(c => c.folderId === activeFolderId);
+
+    const handleOpenFolder = (folderId) => setActiveFolderId(folderId);
+    const handleBackToFolders = () => setActiveFolderId(null);
+
+    const openFolderModal = (folder = null) => {
+        setEditingFolder(folder);
+        setIsFolderModalOpen(true);
+    };
+    
+    const openContentModal = (content = null) => {
+        setEditingContent(content);
+        setIsContentModalOpen(true);
+    };
+
+    const handleSaveFolder = (folderData) => {
+        onSaveFolder(folderData);
+        setIsFolderModalOpen(false);
+        setEditingFolder(null);
+    };
+
+    const handleSaveContent = (contentData) => {
+        onSaveContent(contentData);
+        setIsContentModalOpen(false);
+        setEditingContent(null);
+    };
+
+    const handleDeleteFolderWrapper = (e, id) => {
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this folder and all its contents?')) {
+            onDeleteFolder(id);
+        }
+    };
+
+    const handleDeleteContentWrapper = (e, id) => {
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this content?')) {
+            onDeleteContent(id);
+        }
+    };
+    
+    const handleEditFolderWrapper = (e, folder) => {
+        e.stopPropagation();
+        openFolderModal(folder);
+    };
+
+    const handleEditContentWrapper = (e, content) => {
+        e.stopPropagation();
+        openContentModal(content);
+    };
+
+    // Render Folders View
+    if (activeFolderId === null) {
+        return (
+            <div>
+                <div className="page-header">
+                    <h1>Knowledge Base</h1>
+                    {currentUser.role === 'admin' && (
+                        <button className="btn btn-primary" onClick={() => openFolderModal()}>
+                            New Folder
+                        </button>
+                    )}
+                </div>
+                
+                <div className="card-grid">
+                    {folders.map(folder => (
+                        <div 
+                            key={folder.id} 
+                            className="card" 
+                            style={{cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', transition: 'transform 0.2s', padding: '2rem'}}
+                            onClick={() => handleOpenFolder(folder.id)}
+                            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-5px)'}
+                            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                        >
+                            <div style={{color: 'var(--primary-brand)', marginBottom: '1rem'}}>
+                                <Icon path={ICONS.folder} style={{width: '4rem', height: '4rem'}} />
+                            </div>
+                            <h3 style={{marginBottom: '0.5rem', fontSize: '1.1rem'}}>{folder.name}</h3>
+                            <div style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>
+                                {contents.filter(c => c.folderId === folder.id).length} items
+                            </div>
+                            
+                            {currentUser.role === 'admin' && (
+                                <div style={{marginTop: '1.5rem', display: 'flex', gap: '0.5rem'}}>
+                                    <button className="btn-icon" onClick={(e) => handleEditFolderWrapper(e, folder)} title="Edit Folder">
+                                        <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                                    </button>
+                                    <button className="btn-icon btn-icon-danger" onClick={(e) => handleDeleteFolderWrapper(e, folder.id)} title="Delete Folder">
+                                        <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {folders.length === 0 && (
+                        <div style={{gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem'}}>
+                            No folders created yet.
+                        </div>
+                    )}
+                </div>
+
+                <KnowledgeBaseFolderModal 
+                    isOpen={isFolderModalOpen}
+                    onClose={() => setIsFolderModalOpen(false)}
+                    onSave={handleSaveFolder}
+                    folder={editingFolder}
+                />
+            </div>
+        );
+    }
+
+    // Render Folder Contents View
+    return (
+        <div>
+            <div className="page-header">
+                <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+                    <button className="btn-icon" onClick={handleBackToFolders} style={{backgroundColor: '#e5e7eb', borderRadius: '50%'}}>
+                        <Icon path={ICONS.arrowLeft} />
+                    </button>
+                    <h1 style={{margin: 0}}>{activeFolder?.name}</h1>
+                </div>
+                {currentUser.role === 'admin' && (
+                    <button className="btn btn-primary" onClick={() => openContentModal()}>
+                        Add Content
+                    </button>
+                )}
+            </div>
+
+            <div className="card-grid">
+                {activeContents.map(content => (
+                    <div 
+                        key={content.id} 
+                        className="card"
+                        style={{cursor: 'pointer', transition: 'all 0.2s', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column'}}
+                        onClick={() => setViewingItem(content)}
+                    >
+                        <div style={{
+                            height: '140px', 
+                            backgroundColor: '#f3f4f6', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            backgroundImage: content.imageUrl ? `url(${content.imageUrl})` : 'none',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            borderBottom: '1px solid var(--border-color)'
+                        }}>
+                            {!content.imageUrl && (
+                                <Icon path={ICONS.image} style={{width: '3rem', height: '3rem', color: '#d1d5db'}} />
+                            )}
+                        </div>
+                        <div style={{padding: '1.25rem', flexGrow: 1, display: 'flex', flexDirection: 'column'}}>
+                            <h3 style={{marginBottom: '0.5rem', fontSize: '1.1rem'}}>{content.title}</h3>
+                            <p style={{
+                                color: 'var(--text-secondary)', 
+                                fontSize: '0.9rem', 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis', 
+                                display: '-webkit-box', 
+                                WebkitLineClamp: 3, 
+                                WebkitBoxOrient: 'vertical',
+                                marginBottom: '1rem'
+                            }}>
+                                {content.description}
+                            </p>
+                            
+                            <div style={{marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem'}}>
+                                {currentUser.role === 'admin' && (
+                                    <>
+                                        <button className="btn-icon" onClick={(e) => handleEditContentWrapper(e, content)} title="Edit Content">
+                                            <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                                        </button>
+                                        <button className="btn-icon btn-icon-danger" onClick={(e) => handleDeleteContentWrapper(e, content.id)} title="Delete Content">
+                                            <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+                 {activeContents.length === 0 && (
+                    <div style={{gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem'}}>
+                        No content in this folder yet.
+                    </div>
+                )}
+            </div>
+
+            <KnowledgeBaseContentModal 
+                isOpen={isContentModalOpen}
+                onClose={() => setIsContentModalOpen(false)}
+                onSave={handleSaveContent}
+                content={editingContent}
+                folderId={activeFolderId}
+            />
+
+            <KnowledgeBaseItemView 
+                isOpen={!!viewingItem}
+                onClose={() => setViewingItem(null)}
+                item={viewingItem}
+            />
+        </div>
+    );
+};
+
 const App = () => {
     const [currentUser, setCurrentUser] = useState(() => {
         try {
@@ -1998,6 +2357,61 @@ const App = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Knowledge Base State (Persisted in localStorage)
+    const [kbFolders, setKbFolders] = useState(() => {
+        try {
+            const saved = localStorage.getItem('kbFolders');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [kbContents, setKbContents] = useState(() => {
+        try {
+            const saved = localStorage.getItem('kbContents');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+
+    useEffect(() => {
+        localStorage.setItem('kbFolders', JSON.stringify(kbFolders));
+    }, [kbFolders]);
+
+    useEffect(() => {
+        localStorage.setItem('kbContents', JSON.stringify(kbContents));
+    }, [kbContents]);
+
+    const handleSaveKbFolder = (folderData) => {
+        setKbFolders(prev => {
+            const index = prev.findIndex(f => f.id === folderData.id);
+            if (index >= 0) {
+                const updated = [...prev];
+                updated[index] = folderData;
+                return updated;
+            }
+            return [...prev, folderData];
+        });
+    };
+
+    const handleDeleteKbFolder = (id) => {
+        setKbFolders(prev => prev.filter(f => f.id !== id));
+        setKbContents(prev => prev.filter(c => c.folderId !== id)); // Cascade delete contents
+    };
+
+    const handleSaveKbContent = (contentData) => {
+        setKbContents(prev => {
+            const index = prev.findIndex(c => c.id === contentData.id);
+            if (index >= 0) {
+                const updated = [...prev];
+                updated[index] = contentData;
+                return updated;
+            }
+            return [...prev, contentData];
+        });
+    };
+
+    const handleDeleteKbContent = (id) => {
+        setKbContents(prev => prev.filter(c => c.id !== id));
+    };
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -2215,6 +2629,15 @@ const App = () => {
             case 'Payout Reports': return <PayoutReports subscribers={subscribers} agents={agents} currentUser={currentUser} onSaveSubscriber={handleSaveSubscriber} />;
             case 'Accounting & Financial': return <AccountingFinancial subscribers={subscribers} expenses={expenses} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} />;
             case 'Calendar': return <CalendarView subscribers={subscribers} />;
+            case 'Knowledge Base': return <KnowledgeBase 
+                currentUser={currentUser} 
+                folders={kbFolders} 
+                contents={kbContents}
+                onSaveFolder={handleSaveKbFolder}
+                onDeleteFolder={handleDeleteKbFolder}
+                onSaveContent={handleSaveKbContent}
+                onDeleteContent={handleDeleteKbContent}
+            />;
             default: return <Overview subscribers={subscribers} expenses={expenses} overviewPerformance={overviewPerformance} currentUser={currentUser} />;
         }
     };
@@ -2222,8 +2645,8 @@ const App = () => {
     useEffect(() => {
         if (!currentUser) return;
         const allowedMenusForRole = {
-            admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Accounting & Financial', 'Calendar'],
-            agent: ['Overview', 'Subscribers', 'My Performance', 'Payout Reports'],
+            admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Accounting & Financial', 'Calendar', 'Knowledge Base'],
+            agent: ['Overview', 'Subscribers', 'My Performance', 'Payout Reports', 'Knowledge Base'],
         };
         if (!allowedMenusForRole[currentUser.role].includes(activeMenu)) {
             setActiveMenu('Overview');
