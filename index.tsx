@@ -1,20 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend
-} from 'recharts';
 
 // --- CONFIGURATION ---
 // This URL should point to your deployed Google Apps Script Web App.
-const API_URL: string = '/api/data';
+const GOOGLE_SCRIPT_URL: string = 'https://script.google.com/macros/s/AKfycbxQ-PTvW5vLirBLPv5RJ_ZX0EGuDgvzkHEU8ssSBQCuecqzp0xas7g4qzwsEIxBY3lc/exec';
 
 // --- MOCK DATA (for local development or as fallback) ---
 const initialAgents = [
@@ -28,8 +17,7 @@ const initialAgents = [
   'Lyn - Boosting',
   'Neri - Boosting',
   'Jessa - Personal',
-  'Jessa - Boosting',
-  'Chaty'
+  'Jessa - Boosting'
 ];
 
 const residentialPlans = [
@@ -256,76 +244,135 @@ const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
 };
 
 const LineChart = ({ labels, datasets }) => {
+    const containerRef = useRef(null);
+    const [tooltip, setTooltip] = useState(null);
+    const [containerWidth, setContainerWidth] = useState(0);
+
+    useEffect(() => {
+        const observer = new ResizeObserver(entries => {
+            if (entries[0]) {
+                setContainerWidth(entries[0].contentRect.width);
+            }
+        });
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+        return () => observer.disconnect();
+    }, []);
+
     if (!labels || labels.length === 0) return <p>No data to display for this period.</p>;
 
-    const data = labels.map((label, index) => {
-        const dataPoint = { name: label };
-        datasets.forEach(ds => {
-            dataPoint[ds.name] = ds.data[index];
-        });
-        return dataPoint;
+    const height = 350;
+    const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+    const chartWidth = containerWidth - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    const allDataPoints = datasets.flatMap(ds => ds.data);
+    const maxValue = Math.max(0, ...allDataPoints);
+    const yAxisMax = maxValue === 0 ? 1000 : Math.ceil(maxValue / 1000) * 1000;
+
+    const getX = (index) => padding.left + (index / (labels.length - 1)) * chartWidth;
+    const getY = (value) => padding.top + chartHeight - (value / yAxisMax) * chartHeight;
+
+    const yAxisLabels = Array.from({ length: 6 }, (_, i) => {
+        const value = (yAxisMax / 5) * i;
+        return { value, y: getY(value) };
     });
 
+    const handleMouseOver = (e, index) => {
+        const x = getX(index);
+        const tooltipData = {
+            label: labels[index],
+            datasets: datasets.map(ds => ({
+                name: ds.name,
+                value: ds.data[index],
+                color: ds.color
+            })),
+            x: x,
+            y: e.clientY - containerRef.current.getBoundingClientRect().top
+        };
+        setTooltip(tooltipData);
+    };
+
+    const handleMouseOut = () => {
+        setTooltip(null);
+    };
+
     return (
-        <div style={{ width: '100%', height: 350 }}>
-            <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart
-                    data={data}
-                    margin={{
-                        top: 20,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                    }}
-                >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
-                        dy={10}
-                    />
-                    <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
-                        tickFormatter={(value) => `₱${value >= 1000 ? (value / 1000) + 'k' : value}`}
-                        dx={-10}
-                    />
-                    <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
-                        formatter={(value) => [`₱${value.toLocaleString()}`, undefined]}
-                        cursor={{ fill: 'rgba(226, 232, 240, 0.4)' }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+        <div className="line-chart-container" ref={containerRef}>
+            {containerWidth > 0 && (
+                 <svg className="line-chart-svg" width="100%" height={height}>
+                    <defs>
+                        {datasets.map((ds, i) => (
+                            <linearGradient key={ds.name} id={`gradient-${i}`} x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stopColor={ds.color} stopOpacity="0.2"/>
+                                <stop offset="100%" stopColor={ds.color} stopOpacity="0"/>
+                            </linearGradient>
+                        ))}
+                    </defs>
+
+                    <g className="y-axis">
+                        {yAxisLabels.map(({ value, y }) => (
+                            <g key={value}>
+                                <text x={padding.left - 15} y={y} dy="0.32em" textAnchor="end" className="axis-label">
+                                    {value / 1000}k
+                                </text>
+                                <line x1={padding.left} x2={containerWidth - padding.right} y1={y} y2={y} className="grid-line" />
+                            </g>
+                        ))}
+                    </g>
+
+                    <g className="x-axis">
+                        {labels.map((label, index) => {
+                             const showLabel = labels.length <= 12 || index % Math.ceil(labels.length / 12) === 0;
+                            return showLabel && (
+                                <text key={label} x={getX(index)} y={height - padding.bottom + 25} textAnchor="middle" className="axis-label">
+                                    {label}
+                                </text>
+                            )
+                        })}
+                    </g>
+
                     {datasets.map((ds, i) => {
-                        if (ds.name === 'Commissions') {
-                            return (
-                                <Bar 
-                                    key={ds.name}
-                                    dataKey={ds.name} 
-                                    fill={ds.color} 
-                                    radius={[4, 4, 0, 0]}
-                                    barSize={32}
-                                />
-                            );
-                        } else {
-                            return (
-                                <Line 
-                                    key={ds.name}
-                                    type="monotone" 
-                                    dataKey={ds.name} 
-                                    stroke={ds.color} 
-                                    strokeWidth={3}
-                                    dot={{ r: 4, strokeWidth: 2 }}
-                                    activeDot={{ r: 6, strokeWidth: 0 }}
-                                />
-                            );
-                        }
+                        // Create area path
+                        const areaPath = `
+                            M ${getX(0)} ${height - padding.bottom}
+                            ${ds.data.map((point, index) => `L ${getX(index)} ${getY(point)}`).join(' ')}
+                            L ${getX(ds.data.length - 1)} ${height - padding.bottom}
+                            Z
+                        `;
+                        const linePath = ds.data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${getX(index)} ${getY(point)}`).join(' ');
+
+                        return (
+                            <g key={ds.name}>
+                                <path d={areaPath} fill={`url(#gradient-${i})`} />
+                                <path className="data-line" stroke={ds.color} d={linePath} />
+                            </g>
+                        );
                     })}
-                </ComposedChart>
-            </ResponsiveContainer>
+
+                     {labels.map((_, index) => (
+                        <g key={index} className="data-point-group" onMouseOver={(e) => handleMouseOver(e, index)} onMouseOut={handleMouseOut}>
+                             <rect x={getX(index) - (chartWidth / (labels.length - 1) / 2)} y={padding.top} width={chartWidth / (labels.length - 1)} height={chartHeight} fill="transparent" />
+                            {datasets.map(ds => (
+                                <circle key={ds.name} cx={getX(index)} cy={getY(ds.data[index])} fill={ds.color} className="data-point" />
+                            ))}
+                        </g>
+                    ))}
+                </svg>
+            )}
+           
+            {tooltip && (
+                <div className="chart-tooltip visible" style={{ left: tooltip.x, top: tooltip.y }}>
+                    <div className="tooltip-title">{tooltip.label}</div>
+                    {tooltip.datasets.map(ds => (
+                        <div key={ds.name} className="tooltip-item">
+                            <span className="tooltip-color-box" style={{ backgroundColor: ds.color }}></span>
+                            <span>{ds.name}: ₱{ds.value.toLocaleString()}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -879,8 +926,10 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
     const initialFormState = {
         dateOfApplication: new Date().toISOString().split('T')[0],
         name: '',
+        address: '',
         jobOrderNo: '',
         accountNumber: '',
+        link: '',
         plan: plans[0] || '',
         activationDate: '',
         agent: currentUser.role === 'agent' ? currentUser.name : (agents[0] || ''),
@@ -889,7 +938,6 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
         reason: '',
         payoutStatus: 'Pending',
         payoutRejectionReason: '',
-        subsPaymentStatus: 'Pending',
     };
     
     const [formData, setFormData] = useState(initialFormState);
@@ -942,6 +990,10 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                         <label htmlFor="name">Name</label>
                         <input type="text" id="name" name="name" className="form-control" value={formData.name} onChange={handleChange} required />
                     </div>
+                    <div className="form-group">
+                        <label htmlFor="address">Address</label>
+                        <textarea id="address" name="address" className="form-control" value={formData.address || ''} onChange={handleChange} rows={2} />
+                    </div>
                      <div className="form-group">
                         <label htmlFor="jobOrderNo">Job Order No.</label>
                         <input type="text" id="jobOrderNo" name="jobOrderNo" className="form-control" value={formData.jobOrderNo} onChange={handleChange} />
@@ -949,6 +1001,10 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                     <div className="form-group">
                         <label htmlFor="accountNumber">Account Number</label>
                         <input type="text" id="accountNumber" name="accountNumber" className="form-control" value={formData.accountNumber || ''} onChange={handleChange} />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="link">Link</label>
+                        <input type="text" id="link" name="link" className="form-control" value={formData.link || ''} onChange={handleChange} placeholder="http://" />
                     </div>
                     <div className="form-group">
                         <label htmlFor="plan">Plan</label>
@@ -1134,8 +1190,10 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                             <tr>
                                 <th>Date of App.</th>
                                 <th>Name</th>
+                                <th>Address</th>
                                 <th>Job Order No.</th>
                                 <th>Account No.</th>
+                                <th>Link</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Agent</th>
@@ -1150,8 +1208,16 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                                 <tr key={sub.id}>
                                     <td>{formatDate(sub.dateOfApplication)}</td>
                                     <td>{sub.name}</td>
+                                    <td>{sub.address}</td>
                                     <td>{sub.jobOrderNo}</td>
                                     <td>{sub.accountNumber}</td>
+                                    <td>
+                                        {sub.link ? (
+                                            <a href={sub.link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-brand)', textDecoration: 'underline' }}>
+                                                View
+                                            </a>
+                                        ) : ''}
+                                    </td>
                                     <td>{sub.plan}</td>
                                     <td>{formatDate(sub.activationDate)}</td>
                                     <td>{sub.agent}</td>
@@ -1460,10 +1526,6 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
     const totalCommission = useMemo(() => reportData.reduce((sum, item) => sum + item.commission, 0), [reportData]);
     const totalSales = reportData.length;
 
-    const pendingPayoutData = useMemo(() => reportData.filter(item => item.payoutStatus === 'Pending' || item.payoutStatus === 'On Request'), [reportData]);
-    const pendingPayoutApps = pendingPayoutData.length;
-    const pendingPayoutAmount = pendingPayoutData.reduce((sum, item) => sum + item.commission, 0);
-
     const handlePrint = () => {
         window.print();
     };
@@ -1480,14 +1542,6 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
             };
             onSaveSubscriber(updatedSubscriber);
         }
-    };
-
-    const handleSubsPaymentStatusChange = (subscriber, newStatus) => {
-        const updatedSubscriber = {
-            ...subscriber,
-            subsPaymentStatus: newStatus,
-        };
-        onSaveSubscriber(updatedSubscriber);
     };
     
     const handleSaveRejection = (reason) => {
@@ -1544,10 +1598,6 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                         <div className="stat-value">₱{totalCommission.toLocaleString()}</div>
                         <div className="stat-label">Total Commission</div>
                     </div>
-                     <div className="stat-card">
-                        <div className="stat-value">₱{pendingPayoutAmount.toLocaleString()}</div>
-                        <div className="stat-label">Pending Payout ({pendingPayoutApps} apps)</div>
-                    </div>
                 </div>
 
                 <div className="table-responsive-wrapper">
@@ -1560,7 +1610,6 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Commission</th>
-                                <th>Subs Payment Status</th>
                                 <th>Payout Status</th>
                                 <th>Rejection Reason</th>
                             </tr>
@@ -1574,23 +1623,6 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                     <td>{item.plan}</td>
                                     <td>{formatDate(item.activationDate)}</td>
                                     <td>₱{item.commission.toLocaleString()}</td>
-                                    <td>
-                                        {currentUser.role === 'admin' ? (
-                                            <select
-                                                className="form-control table-select"
-                                                value={item.subsPaymentStatus || 'Pending'}
-                                                onChange={(e) => handleSubsPaymentStatusChange(item, e.target.value)}
-                                                aria-label={`Subs payment status for ${item.name}`}
-                                            >
-                                                <option value="Pending">Pending</option>
-                                                <option value="Paid">Paid</option>
-                                            </select>
-                                        ) : (
-                                            <span className="status-badge" style={item.subsPaymentStatus === 'Paid' ? {backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)'} : {backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)'}}>
-                                                {item.subsPaymentStatus || 'Pending'}
-                                            </span>
-                                        )}
-                                    </td>
                                     <td>
                                         {currentUser.role === 'admin' ? (
                                             <select
@@ -1614,7 +1646,7 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={9} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
+                                    <td colSpan={8} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -2399,7 +2431,6 @@ const App = () => {
                     // Ensure payoutStatus is set for saving
                     if (!item.payoutStatus) item.payoutStatus = 'Pending';
                     if (!item.payoutRejectionReason) item.payoutRejectionReason = '';
-                    if (!item.subsPaymentStatus) item.subsPaymentStatus = 'Pending';
                 });
             } else if (sheetName === 'Expenses') {
                 dataForSheet.forEach(item => {
@@ -2412,7 +2443,7 @@ const App = () => {
                 data: dataForSheet,
             };
 
-            const response = await fetch(API_URL, {
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
@@ -2482,7 +2513,7 @@ const App = () => {
             setIsLoading(true);
             setError(null);
             try {
-                const response = await fetch(API_URL);
+                const response = await fetch(GOOGLE_SCRIPT_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -2507,8 +2538,7 @@ const App = () => {
                     status: item.status || 'Pending',
                     reason: item.reason || '',
                     payoutStatus: item.payoutStatus || 'Pending',
-                    payoutRejectionReason: item.payoutRejectionReason || '',
-                    subsPaymentStatus: item.subsPaymentStatus || 'Pending'
+                    payoutRejectionReason: item.payoutRejectionReason || ''
                 }));
                 setSubscribers(processedSubscribers);
 
