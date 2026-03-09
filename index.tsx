@@ -14,7 +14,7 @@ import {
 
 // --- CONFIGURATION ---
 // This URL should point to your deployed Google Apps Script Web App.
-const GOOGLE_SCRIPT_URL: string = 'https://script.google.com/macros/s/AKfycbxQ-PTvW5vLirBLPv5RJ_ZX0EGuDgvzkHEU8ssSBQCuecqzp0xas7g4qzwsEIxBY3lc/exec';
+const API_URL: string = '/api/data';
 
 // --- MOCK DATA (for local development or as fallback) ---
 const initialAgents = [
@@ -2412,7 +2412,7 @@ const App = () => {
                 data: dataForSheet,
             };
 
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
@@ -2482,7 +2482,7 @@ const App = () => {
             setIsLoading(true);
             setError(null);
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL);
+                const response = await fetch(API_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
