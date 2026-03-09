@@ -17,7 +17,8 @@ const initialAgents = [
   'Lyn - Boosting',
   'Neri - Boosting',
   'Jessa - Personal',
-  'Jessa - Boosting'
+  'Jessa - Boosting',
+  'Chaty'
 ];
 
 const residentialPlans = [
@@ -926,10 +927,8 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
     const initialFormState = {
         dateOfApplication: new Date().toISOString().split('T')[0],
         name: '',
-        address: '',
         jobOrderNo: '',
         accountNumber: '',
-        link: '',
         plan: plans[0] || '',
         activationDate: '',
         agent: currentUser.role === 'agent' ? currentUser.name : (agents[0] || ''),
@@ -990,10 +989,6 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                         <label htmlFor="name">Name</label>
                         <input type="text" id="name" name="name" className="form-control" value={formData.name} onChange={handleChange} required />
                     </div>
-                    <div className="form-group">
-                        <label htmlFor="address">Address</label>
-                        <textarea id="address" name="address" className="form-control" value={formData.address || ''} onChange={handleChange} rows={2} />
-                    </div>
                      <div className="form-group">
                         <label htmlFor="jobOrderNo">Job Order No.</label>
                         <input type="text" id="jobOrderNo" name="jobOrderNo" className="form-control" value={formData.jobOrderNo} onChange={handleChange} />
@@ -1001,10 +996,6 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
                     <div className="form-group">
                         <label htmlFor="accountNumber">Account Number</label>
                         <input type="text" id="accountNumber" name="accountNumber" className="form-control" value={formData.accountNumber || ''} onChange={handleChange} />
-                    </div>
-                    <div className="form-group">
-                        <label htmlFor="link">Link</label>
-                        <input type="text" id="link" name="link" className="form-control" value={formData.link || ''} onChange={handleChange} placeholder="http://" />
                     </div>
                     <div className="form-group">
                         <label htmlFor="plan">Plan</label>
@@ -1190,10 +1181,8 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                             <tr>
                                 <th>Date of App.</th>
                                 <th>Name</th>
-                                <th>Address</th>
                                 <th>Job Order No.</th>
                                 <th>Account No.</th>
-                                <th>Link</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
                                 <th>Agent</th>
@@ -1208,16 +1197,8 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
                                 <tr key={sub.id}>
                                     <td>{formatDate(sub.dateOfApplication)}</td>
                                     <td>{sub.name}</td>
-                                    <td>{sub.address}</td>
                                     <td>{sub.jobOrderNo}</td>
                                     <td>{sub.accountNumber}</td>
-                                    <td>
-                                        {sub.link ? (
-                                            <a href={sub.link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-brand)', textDecoration: 'underline' }}>
-                                                View
-                                            </a>
-                                        ) : ''}
-                                    </td>
                                     <td>{sub.plan}</td>
                                     <td>{formatDate(sub.activationDate)}</td>
                                     <td>{sub.agent}</td>
