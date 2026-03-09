@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 // --- CONFIGURATION ---
 // This URL should point to your deployed Google Apps Script Web App.
@@ -245,135 +246,71 @@ const Header = ({ currentUser, onLogout, isSaving, onToggleSidebar }) => {
 };
 
 const LineChart = ({ labels, datasets }) => {
-    const containerRef = useRef(null);
-    const [tooltip, setTooltip] = useState(null);
-    const [containerWidth, setContainerWidth] = useState(0);
-
-    useEffect(() => {
-        const observer = new ResizeObserver(entries => {
-            if (entries[0]) {
-                setContainerWidth(entries[0].contentRect.width);
-            }
-        });
-        if (containerRef.current) {
-            observer.observe(containerRef.current);
-        }
-        return () => observer.disconnect();
-    }, []);
-
     if (!labels || labels.length === 0) return <p>No data to display for this period.</p>;
 
-    const height = 350;
-    const padding = { top: 20, right: 20, bottom: 40, left: 60 };
-    const chartWidth = containerWidth - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-
-    const allDataPoints = datasets.flatMap(ds => ds.data);
-    const maxValue = Math.max(0, ...allDataPoints);
-    const yAxisMax = maxValue === 0 ? 1000 : Math.ceil(maxValue / 1000) * 1000;
-
-    const getX = (index) => padding.left + (index / (labels.length - 1)) * chartWidth;
-    const getY = (value) => padding.top + chartHeight - (value / yAxisMax) * chartHeight;
-
-    const yAxisLabels = Array.from({ length: 6 }, (_, i) => {
-        const value = (yAxisMax / 5) * i;
-        return { value, y: getY(value) };
+    const data = labels.map((label, index) => {
+        const dataPoint: any = { name: label };
+        datasets.forEach(ds => {
+            dataPoint[ds.name] = ds.data[index];
+        });
+        return dataPoint;
     });
 
-    const handleMouseOver = (e, index) => {
-        const x = getX(index);
-        const tooltipData = {
-            label: labels[index],
-            datasets: datasets.map(ds => ({
-                name: ds.name,
-                value: ds.data[index],
-                color: ds.color
-            })),
-            x: x,
-            y: e.clientY - containerRef.current.getBoundingClientRect().top
-        };
-        setTooltip(tooltipData);
-    };
-
-    const handleMouseOut = () => {
-        setTooltip(null);
-    };
-
     return (
-        <div className="line-chart-container" ref={containerRef}>
-            {containerWidth > 0 && (
-                 <svg className="line-chart-svg" width="100%" height={height}>
+        <div style={{ width: '100%', height: 350 }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                    data={data}
+                    margin={{
+                        top: 20,
+                        right: 30,
+                        left: 20,
+                        bottom: 10,
+                    }}
+                >
                     <defs>
-                        {datasets.map((ds, i) => (
-                            <linearGradient key={ds.name} id={`gradient-${i}`} x1="0" x2="0" y1="0" y2="1">
-                                <stop offset="0%" stopColor={ds.color} stopOpacity="0.2"/>
-                                <stop offset="100%" stopColor={ds.color} stopOpacity="0"/>
+                        {datasets.map((ds, index) => (
+                            <linearGradient key={`color-${ds.name}`} id={`color${index}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={ds.color} stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor={ds.color} stopOpacity={0}/>
                             </linearGradient>
                         ))}
                     </defs>
-
-                    <g className="y-axis">
-                        {yAxisLabels.map(({ value, y }) => (
-                            <g key={value}>
-                                <text x={padding.left - 15} y={y} dy="0.32em" textAnchor="end" className="axis-label">
-                                    {value / 1000}k
-                                </text>
-                                <line x1={padding.left} x2={containerWidth - padding.right} y1={y} y2={y} className="grid-line" />
-                            </g>
-                        ))}
-                    </g>
-
-                    <g className="x-axis">
-                        {labels.map((label, index) => {
-                             const showLabel = labels.length <= 12 || index % Math.ceil(labels.length / 12) === 0;
-                            return showLabel && (
-                                <text key={label} x={getX(index)} y={height - padding.bottom + 25} textAnchor="middle" className="axis-label">
-                                    {label}
-                                </text>
-                            )
-                        })}
-                    </g>
-
-                    {datasets.map((ds, i) => {
-                        // Create area path
-                        const areaPath = `
-                            M ${getX(0)} ${height - padding.bottom}
-                            ${ds.data.map((point, index) => `L ${getX(index)} ${getY(point)}`).join(' ')}
-                            L ${getX(ds.data.length - 1)} ${height - padding.bottom}
-                            Z
-                        `;
-                        const linePath = ds.data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${getX(index)} ${getY(point)}`).join(' ');
-
-                        return (
-                            <g key={ds.name}>
-                                <path d={areaPath} fill={`url(#gradient-${i})`} />
-                                <path className="data-line" stroke={ds.color} d={linePath} />
-                            </g>
-                        );
-                    })}
-
-                     {labels.map((_, index) => (
-                        <g key={index} className="data-point-group" onMouseOver={(e) => handleMouseOver(e, index)} onMouseOut={handleMouseOut}>
-                             <rect x={getX(index) - (chartWidth / (labels.length - 1) / 2)} y={padding.top} width={chartWidth / (labels.length - 1)} height={chartHeight} fill="transparent" />
-                            {datasets.map(ds => (
-                                <circle key={ds.name} cx={getX(index)} cy={getY(ds.data[index])} fill={ds.color} className="data-point" />
-                            ))}
-                        </g>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                    <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
+                        dy={10}
+                        minTickGap={20}
+                    />
+                    <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
+                        tickFormatter={(value) => `₱${value >= 1000 ? (value / 1000) + 'k' : value}`}
+                        dx={-10}
+                    />
+                    <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                        formatter={(value: number) => [`₱${value.toLocaleString()}`, undefined]}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                    {datasets.map((ds, index) => (
+                        <Area 
+                            key={ds.name}
+                            type="monotone" 
+                            dataKey={ds.name} 
+                            stroke={ds.color} 
+                            strokeWidth={3}
+                            fillOpacity={1} 
+                            fill={`url(#color${index})`} 
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                        />
                     ))}
-                </svg>
-            )}
-           
-            {tooltip && (
-                <div className="chart-tooltip visible" style={{ left: tooltip.x, top: tooltip.y }}>
-                    <div className="tooltip-title">{tooltip.label}</div>
-                    {tooltip.datasets.map(ds => (
-                        <div key={ds.name} className="tooltip-item">
-                            <span className="tooltip-color-box" style={{ backgroundColor: ds.color }}></span>
-                            <span>{ds.name}: ₱{ds.value.toLocaleString()}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
+                </AreaChart>
+            </ResponsiveContainer>
         </div>
     );
 };
@@ -381,13 +318,42 @@ const LineChart = ({ labels, datasets }) => {
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
 
-    const pageNumbers = [];
-    for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-    }
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = window.innerWidth < 640 ? 3 : 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = startPage + maxVisiblePages - 1;
+
+            if (endPage > totalPages) {
+                endPage = totalPages;
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                pages.push(1);
+                if (startPage > 2) pages.push('...');
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pages.push(i);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
+
+    const pageNumbers = getPageNumbers();
 
     return (
-        <nav className="pagination-container" aria-label="Table pagination">
+        <nav className="pagination-container" aria-label="Table pagination" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.25rem', padding: '1rem' }}>
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -396,15 +362,19 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             >
                 &laquo;
             </button>
-            {pageNumbers.map(number => (
-                <button
-                    key={number}
-                    onClick={() => onPageChange(number)}
-                    className={`pagination-button ${currentPage === number ? 'active' : ''}`}
-                    aria-current={currentPage === number ? 'page' : undefined}
-                >
-                    {number}
-                </button>
+            {pageNumbers.map((number, index) => (
+                number === '...' ? (
+                    <span key={`ellipsis-${index}`} style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>...</span>
+                ) : (
+                    <button
+                        key={number}
+                        onClick={() => onPageChange(number)}
+                        className={`pagination-button ${currentPage === number ? 'active' : ''}`}
+                        aria-current={currentPage === number ? 'page' : undefined}
+                    >
+                        {number}
+                    </button>
+                )
             ))}
             <button
                 onClick={() => onPageChange(currentPage + 1)}
@@ -937,6 +907,7 @@ const SubscriberModal = ({ isOpen, onClose, onSave, subscriber, agents, plans, c
         reason: '',
         payoutStatus: 'Pending',
         payoutRejectionReason: '',
+        subsPaymentStatus: 'PENDING',
     };
     
     const [formData, setFormData] = useState(initialFormState);
@@ -1488,6 +1459,8 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
     const [selectedAgent, setSelectedAgent] = useState(currentUser.role === 'admin' ? 'All' : currentUser.name);
     const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
     const [editingSubscriberForRejection, setEditingSubscriberForRejection] = useState(null);
+    const [activeTab, setActiveTab] = useState('Commission');
+    const [subsPaymentFilter, setSubsPaymentFilter] = useState('PENDING');
 
     const reportData = useMemo(() => {
         return subscribers.filter(sub => {
@@ -1497,12 +1470,17 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
             const matchesAgent = currentUser.role === 'admin' ? (selectedAgent === 'All' || sub.agent === selectedAgent) : sub.agent === currentUser.name;
             const matchesDate = activationDate.getFullYear() === selectedYear && (activationDate.getMonth() + 1) === selectedMonth;
             
+            if (activeTab === 'Subs Payment') {
+                const currentPaymentStatus = sub.subsPaymentStatus || 'PENDING';
+                if (currentPaymentStatus !== subsPaymentFilter) return false;
+            }
+
             return isInstalled && matchesAgent && matchesDate;
         }).map(sub => ({
             ...sub,
             commission: calculateCommission(sub.plan)
         }));
-    }, [subscribers, selectedMonth, selectedYear, selectedAgent, currentUser]);
+    }, [subscribers, selectedMonth, selectedYear, selectedAgent, currentUser, activeTab, subsPaymentFilter]);
 
     const totalCommission = useMemo(() => reportData.reduce((sum, item) => sum + item.commission, 0), [reportData]);
     const totalSales = reportData.length;
@@ -1536,6 +1514,14 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
         closeRejectionModal();
     };
 
+    const handleSubsPaymentStatusChange = (subscriber, newStatus) => {
+        const updatedSubscriber = {
+            ...subscriber,
+            subsPaymentStatus: newStatus,
+        };
+        onSaveSubscriber(updatedSubscriber);
+    };
+
     const closeRejectionModal = () => {
         setIsRejectionModalOpen(false);
         setEditingSubscriberForRejection(null);
@@ -1547,25 +1533,59 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                 <h1>Payout Reports</h1>
                 <button className="btn btn-secondary no-print" onClick={handlePrint}>Print Report</button>
             </div>
+            <div className="tabs no-print" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+                <button 
+                    className={`tab-btn ${activeTab === 'Commission' ? 'active' : ''}`} 
+                    onClick={() => setActiveTab('Commission')}
+                    style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'Commission' ? '2px solid var(--primary-brand)' : 'none', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontWeight: activeTab === 'Commission' ? 'bold' : 'normal', color: activeTab === 'Commission' ? 'var(--primary-brand)' : 'var(--text-secondary)' }}
+                >
+                    Commission
+                </button>
+                <button 
+                    className={`tab-btn ${activeTab === 'Subs Payment' ? 'active' : ''}`} 
+                    onClick={() => setActiveTab('Subs Payment')}
+                    style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'Subs Payment' ? '2px solid var(--primary-brand)' : 'none', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontWeight: activeTab === 'Subs Payment' ? 'bold' : 'normal', color: activeTab === 'Subs Payment' ? 'var(--primary-brand)' : 'var(--text-secondary)' }}
+                >
+                    Subs Payment
+                </button>
+            </div>
             <div className="card">
-                <div className="report-filters no-print">
-                    <div className="form-group">
-                        <label>Month</label>
-                        <select className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
-                            {Array.from({length: 12}, (_, i) => <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>)}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label>Year</label>
-                        <input className="form-control" type="number" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} />
-                    </div>
-                    {currentUser.role === 'admin' && (
-                         <div className="form-group">
-                            <label>Agent</label>
-                            <select className="form-control" value={selectedAgent} onChange={e => setSelectedAgent(e.target.value)}>
-                                <option value="All">All Agents</option>
-                                {agents.map(agent => <option key={agent} value={agent}>{agent}</option>)}
+                <div className="report-filters no-print" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div className="form-group">
+                            <label>Month</label>
+                            <select className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
+                                {Array.from({length: 12}, (_, i) => <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>)}
                             </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Year</label>
+                            <input className="form-control" type="number" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} />
+                        </div>
+                        {currentUser.role === 'admin' && (
+                             <div className="form-group">
+                                <label>Agent</label>
+                                <select className="form-control" value={selectedAgent} onChange={e => setSelectedAgent(e.target.value)}>
+                                    <option value="All">All Agents</option>
+                                    {agents.map(agent => <option key={agent} value={agent}>{agent}</option>)}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+                    {activeTab === 'Subs Payment' && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                                className={`btn ${subsPaymentFilter === 'PENDING' ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setSubsPaymentFilter('PENDING')}
+                            >
+                                PENDING
+                            </button>
+                            <button 
+                                className={`btn ${subsPaymentFilter === 'PAID' ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setSubsPaymentFilter('PAID')}
+                            >
+                                PAID
+                            </button>
                         </div>
                     )}
                 </div>
@@ -1575,10 +1595,12 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                         <div className="stat-value">{totalSales}</div>
                         <div className="stat-label">Total Sales</div>
                     </div>
-                     <div className="stat-card">
-                        <div className="stat-value">₱{totalCommission.toLocaleString()}</div>
-                        <div className="stat-label">Total Commission</div>
-                    </div>
+                     {activeTab === 'Commission' && (
+                         <div className="stat-card">
+                            <div className="stat-value">₱{totalCommission.toLocaleString()}</div>
+                            <div className="stat-label">Total Commission</div>
+                        </div>
+                     )}
                 </div>
 
                 <div className="table-responsive-wrapper">
@@ -1590,9 +1612,17 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 <th>Job Order No.</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
-                                <th>Commission</th>
-                                <th>Payout Status</th>
-                                <th>Rejection Reason</th>
+                                {activeTab === 'Commission' ? (
+                                    <>
+                                        <th>Commission</th>
+                                        <th>Payout Status</th>
+                                        <th>Rejection Reason</th>
+                                    </>
+                                ) : (
+                                    <>
+                                        <th>Subs Payment Status</th>
+                                    </>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
@@ -1603,31 +1633,58 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                     <td>{item.jobOrderNo}</td>
                                     <td>{item.plan}</td>
                                     <td>{formatDate(item.activationDate)}</td>
-                                    <td>₱{item.commission.toLocaleString()}</td>
-                                    <td>
-                                        {currentUser.role === 'admin' ? (
-                                            <select
-                                                className="form-control table-select"
-                                                value={item.payoutStatus || 'Pending'}
-                                                onChange={(e) => handleStatusChange(item, e.target.value)}
-                                                aria-label={`Payout status for ${item.name}`}
-                                            >
-                                                <option value="Pending">Pending</option>
-                                                <option value="On Request">On Request</option>
-                                                <option value="Completed">Completed</option>
-                                                <option value="Rejected">Rejected</option>
-                                            </select>
-                                        ) : (
-                                            <span className="status-badge" style={payoutStatusBadgeStyle(item.payoutStatus || 'Pending')}>
-                                                {item.payoutStatus || 'Pending'}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td>{item.payoutRejectionReason}</td>
+                                    {activeTab === 'Commission' ? (
+                                        <>
+                                            <td>₱{item.commission.toLocaleString()}</td>
+                                            <td>
+                                                {currentUser.role === 'admin' ? (
+                                                    <select
+                                                        className="form-control table-select"
+                                                        value={item.payoutStatus || 'Pending'}
+                                                        onChange={(e) => handleStatusChange(item, e.target.value)}
+                                                        aria-label={`Payout status for ${item.name}`}
+                                                    >
+                                                        <option value="Pending">Pending</option>
+                                                        <option value="On Request">On Request</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                    </select>
+                                                ) : (
+                                                    <span className="status-badge" style={payoutStatusBadgeStyle(item.payoutStatus || 'Pending')}>
+                                                        {item.payoutStatus || 'Pending'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td>{item.payoutRejectionReason}</td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td>
+                                                {currentUser.role === 'admin' ? (
+                                                    <select
+                                                        className="form-control table-select"
+                                                        value={item.subsPaymentStatus || 'PENDING'}
+                                                        onChange={(e) => handleSubsPaymentStatusChange(item, e.target.value)}
+                                                        aria-label={`Subs payment status for ${item.name}`}
+                                                    >
+                                                        <option value="PENDING">PENDING</option>
+                                                        <option value="PAID">PAID</option>
+                                                    </select>
+                                                ) : (
+                                                    <span className="status-badge" style={{
+                                                        backgroundColor: (item.subsPaymentStatus || 'PENDING') === 'PAID' ? 'var(--accent-green-bg)' : 'var(--accent-yellow-bg)',
+                                                        color: (item.subsPaymentStatus || 'PENDING') === 'PAID' ? 'var(--accent-green-text)' : 'var(--accent-yellow-text)',
+                                                    }}>
+                                                        {item.subsPaymentStatus || 'PENDING'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </>
+                                    )}
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={8} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
+                                    <td colSpan={activeTab === 'Commission' ? 8 : 6} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
                                 </tr>
                             )}
                         </tbody>
