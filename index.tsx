@@ -1144,12 +1144,45 @@ const Subscribers = ({ subscribers, onSave, onDelete, agents, plans, currentUser
             '#374151',
     });
 
+    const statusCounts = useMemo(() => {
+        const counts = {
+            'Pending': 0,
+            'TRANSMITTED': 0,
+            'with JOB Order': 0,
+            'ONGOING': 0,
+            'On The Way': 0,
+            'Installed': 0,
+            'Cancelled': 0,
+            'Reject': 0
+        };
+        visibleSubscribers.forEach(sub => {
+            if (sub.status && counts[sub.status] !== undefined) {
+                counts[sub.status]++;
+            } else if (sub.status) {
+                counts[sub.status] = 1;
+            }
+        });
+        return counts;
+    }, [visibleSubscribers]);
+
     return (
         <div>
             <div className="page-header">
                 <h1>Subscribers</h1>
                 <button className="btn btn-primary" onClick={() => openModal()}>New Subscriber</button>
             </div>
+            
+            <div className="card-grid" style={{ marginBottom: '2rem' }}>
+                {Object.entries(statusCounts).map(([status, count]) => (
+                    <div className="overview-stat-card" key={status} style={{ padding: '1rem' }}>
+                        <div className="stat-value" style={{ color: statusBadgeStyle(status).color, fontSize: '1.5rem' }}>{count}</div>
+                        <div className="stat-label" style={{ marginTop: '0.5rem' }}>
+                            <span className="status-badge" style={statusBadgeStyle(status)}>{status}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
             <div className="card">
                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <input
