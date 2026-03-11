@@ -95,6 +95,23 @@ const payoutStatusBadgeStyle = (status) => ({
         '#6b7280',
 });
 
+const statusBadgeStyle = (status) => ({
+    backgroundColor:
+        status === 'Installed' ? 'var(--accent-green-bg)' :
+        status === 'Pending' ? 'var(--accent-yellow-bg)' :
+        status === 'On The Way' ? 'var(--accent-blue-bg)' :
+        status === 'TRANSMITTED' ? 'var(--accent-purple-bg)' :
+        status === 'Cancelled' ? 'var(--accent-red-bg)' :
+        '#f3f4f6',
+    color:
+        status === 'Installed' ? 'var(--accent-green-text)' :
+        status === 'Pending' ? 'var(--accent-yellow-text)' :
+        status === 'On The Way' ? 'var(--accent-blue-text)' :
+        status === 'TRANSMITTED' ? 'var(--accent-purple-text)' :
+        status === 'Cancelled' ? 'var(--accent-red-text)' :
+        '#6b7280',
+});
+
 // --- SVG ICONS ---
 const Icon = ({ path, className = '', style = {} }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="http://www.w3.org/2000/svg" fill="currentColor" className={className} style={{ width: '1.25rem', height: '1.25rem', ...style }}>
@@ -187,6 +204,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
         { name: 'My Performance', icon: 'performance', roles: ['agent'] },
         { name: 'Agent Performance', icon: 'performance', roles: ['admin'] },
         { name: 'Payout Reports', icon: 'payout', roles: ['admin', 'agent'] },
+        { name: 'Encoder Payout', icon: 'payout', roles: ['admin', 'agent'] },
         { name: 'Accounting & Financial', icon: 'accounting', roles: ['admin'] },
         { name: 'Knowledge Base', icon: 'knowledgeBase', roles: ['admin', 'agent'] },
         { name: 'Calendar', icon: 'calendar', roles: ['admin'] },
@@ -1792,6 +1810,169 @@ const ExpenseModal = ({ isOpen, onClose, onSave, expense }) => {
     );
 };
 
+const EncoderPayout = ({ subscribers, currentUser, onSaveSubscriber }) => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+
+    const [filterEncoder, setFilterEncoder] = useState('All');
+    const [filterStatus, setFilterStatus] = useState('All');
+
+    const encoderSubscribers = useMemo(() => {
+        return subscribers.filter(sub => sub.encoder && sub.encoder.trim() !== '');
+    }, [subscribers]);
+
+    const uniqueEncoders = useMemo(() => {
+        const encoders = new Set(encoderSubscribers.map(sub => sub.encoder));
+        return Array.from(encoders).sort();
+    }, [encoderSubscribers]);
+
+    const filteredEncoderSubscribers = useMemo(() => {
+        return encoderSubscribers.filter(sub => {
+            const matchesEncoder = filterEncoder === 'All' || sub.encoder === filterEncoder;
+            const matchesStatus = filterStatus === 'All' || sub.status === filterStatus;
+            return matchesEncoder && matchesStatus;
+        });
+    }, [encoderSubscribers, filterEncoder, filterStatus]);
+
+    const stats = useMemo(() => {
+        const totalApps = filteredEncoderSubscribers.length;
+        
+        const installedThisMonth = filteredEncoderSubscribers.filter(sub => {
+            if (!sub.activationDate || sub.status !== 'Installed') return false;
+            const activationDate = new Date(sub.activationDate);
+            return activationDate.getFullYear() === currentYear && activationDate.getMonth() === currentMonth;
+        }).length;
+
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        
+        const installedLastMonth = filteredEncoderSubscribers.filter(sub => {
+            if (!sub.activationDate || sub.status !== 'Installed') return false;
+            const activationDate = new Date(sub.activationDate);
+            return activationDate.getFullYear() === lastMonthYear && activationDate.getMonth() === lastMonth;
+        }).length;
+
+        return { totalApps, installedThisMonth, installedLastMonth };
+    }, [filteredEncoderSubscribers, currentMonth, currentYear]);
+
+    const handleStatusChange = (subscriber, newStatus) => {
+        const updatedSubscriber = {
+            ...subscriber,
+            encoderPayoutStatus: newStatus,
+        };
+        onSaveSubscriber(updatedSubscriber);
+    };
+
+    return (
+        <div>
+            <div className="page-header">
+                <h1>Encoder Payout</h1>
+            </div>
+            
+            <div className="card-grid">
+                <div className="overview-stat-card">
+                    <div className="stat-value">{stats.totalApps}</div>
+                    <div className="stat-label">Total Apps</div>
+                </div>
+                <div className="overview-stat-card">
+                    <div className="stat-value">{stats.installedThisMonth}</div>
+                    <div className="stat-label">Total Installed This Month</div>
+                </div>
+                <div className="overview-stat-card">
+                    <div className="stat-value">{stats.installedLastMonth}</div>
+                    <div className="stat-label">Total Installed Last Month</div>
+                </div>
+            </div>
+
+            <div className="card" style={{ marginTop: '2rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <select
+                        className="form-control"
+                        style={{ width: 'auto', minWidth: '150px' }}
+                        value={filterEncoder}
+                        onChange={(e) => setFilterEncoder(e.target.value)}
+                        aria-label="Filter by Encoder"
+                    >
+                        <option value="All">All Encoders</option>
+                        {uniqueEncoders.map(encoder => (
+                            <option key={encoder} value={encoder}>{encoder}</option>
+                        ))}
+                    </select>
+                    <select
+                        className="form-control"
+                        style={{ width: 'auto', minWidth: '150px' }}
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        aria-label="Filter by Status"
+                    >
+                        <option value="All">All Statuses</option>
+                        <option value="Pending">Pending</option>
+                        <option value="On The Way">On The Way</option>
+                        <option value="TRANSMITTED">TRANSMITTED</option>
+                        <option value="Installed">Installed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div className="table-responsive">
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>Date of Application</th>
+                                <th>Name of Subscriber</th>
+                                <th>Encoder</th>
+                                <th>Status</th>
+                                <th>Plan</th>
+                                <th>Date of Activation</th>
+                                <th>Encoder Payout Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredEncoderSubscribers.map(sub => (
+                                <tr key={sub.id}>
+                                    <td>{formatDate(sub.dateOfApplication)}</td>
+                                    <td>{sub.name}</td>
+                                    <td>{sub.encoder}</td>
+                                    <td>
+                                        <span className="status-badge" style={statusBadgeStyle(sub.status)}>
+                                            {sub.status}
+                                        </span>
+                                    </td>
+                                    <td>{sub.plan}</td>
+                                    <td>{formatDate(sub.activationDate)}</td>
+                                    <td>
+                                        {currentUser.role === 'admin' ? (
+                                            <select
+                                                className="form-control table-select"
+                                                value={sub.encoderPayoutStatus || 'Pending'}
+                                                onChange={(e) => handleStatusChange(sub, e.target.value)}
+                                                disabled={sub.status !== 'Installed'}
+                                            >
+                                                <option value="Pending">Pending</option>
+                                                <option value="On Request">On Request</option>
+                                                <option value="Completed">Completed</option>
+                                                <option value="Rejected">Rejected</option>
+                                            </select>
+                                        ) : (
+                                            <span className="status-badge" style={payoutStatusBadgeStyle(sub.encoderPayoutStatus || 'Pending')}>
+                                                {sub.encoderPayoutStatus || 'Pending'}
+                                            </span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredEncoderSubscribers.length === 0 && (
+                                <tr>
+                                    <td colSpan="7" style={{ textAlign: 'center' }}>No records found.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AccountingFinancial = ({ subscribers, expenses, onSaveExpense, onDeleteExpense }) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
@@ -2514,6 +2695,7 @@ const App = () => {
                     item['Column 14'] = item.id || '';
                     item['Column 15'] = item.address || '';
                     item['Column 16'] = item.link || '';
+                    item['Column 17'] = item.encoderPayoutStatus || 'Pending';
                 });
             } else if (sheetName === 'Expenses') {
                 dataForSheet.forEach(item => {
@@ -2627,7 +2809,8 @@ const App = () => {
                     reason: item.reason || item['Column 10'] || '',
                     payoutStatus: item.payoutStatus || item['Column 11'] || 'Pending',
                     payoutRejectionReason: item.payoutRejectionReason || item['Column 12'] || '',
-                    subsPaymentStatus: item.subsPaymentStatus || item['Column 13'] || 'PENDING'
+                    subsPaymentStatus: item.subsPaymentStatus || item['Column 13'] || 'PENDING',
+                    encoderPayoutStatus: item.encoderPayoutStatus || item['Column 17'] || 'Pending'
                 }));
                 setSubscribers(processedSubscribers);
 
@@ -2761,6 +2944,7 @@ const App = () => {
             case 'My Performance': return <MyPerformance subscribers={subscribers} currentUser={currentUser} />;
             case 'Agent Performance': return <AgentPerformance subscribers={subscribers} agents={agents} />;
             case 'Payout Reports': return <PayoutReports subscribers={subscribers} agents={agents} currentUser={currentUser} onSaveSubscriber={handleSaveSubscriber} />;
+            case 'Encoder Payout': return <EncoderPayout subscribers={subscribers} currentUser={currentUser} onSaveSubscriber={handleSaveSubscriber} />;
             case 'Accounting & Financial': return <AccountingFinancial subscribers={subscribers} expenses={expenses} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} />;
             case 'Calendar': return <CalendarView subscribers={subscribers} />;
             case 'Knowledge Base': return <KnowledgeBase 
@@ -2779,8 +2963,8 @@ const App = () => {
     useEffect(() => {
         if (!currentUser) return;
         const allowedMenusForRole = {
-            admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Accounting & Financial', 'Calendar', 'Knowledge Base'],
-            agent: ['Overview', 'Subscribers', 'My Performance', 'Payout Reports', 'Knowledge Base'],
+            admin: ['Overview', 'Subscribers', 'Agent Performance', 'Payout Reports', 'Encoder Payout', 'Accounting & Financial', 'Calendar', 'Knowledge Base'],
+            agent: ['Overview', 'Subscribers', 'My Performance', 'Payout Reports', 'Encoder Payout', 'Knowledge Base'],
         };
         if (!allowedMenusForRole[currentUser.role].includes(activeMenu)) {
             setActiveMenu('Overview');
