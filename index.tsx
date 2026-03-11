@@ -200,24 +200,50 @@ const Sidebar = ({ activeMenu, setActiveMenu, userRole, isOpen, onClose }) => {
     return (
         <>
             {isOpen && <div className="sidebar-backdrop" onClick={onClose}></div>}
-            <nav className={`sidebar no-print ${isOpen ? 'sidebar-open' : ''}`}>
+            <nav className={`sidebar no-print ${isOpen ? 'sidebar-open' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
                 <div className="sidebar-logo">
                     <span className="sidebar-logo-text">Globe</span>
                     <span className="sidebar-logo-subtext">Tracker</span>
                 </div>
-                {menus.filter(menu => menu.roles.includes(userRole)).map(menu => (
-                    <div
-                        key={menu.name}
-                        className={`menu-item ${activeMenu === menu.name ? 'active' : ''}`}
-                        onClick={() => handleMenuClick(menu.name)}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={menu.name}
-                    >
-                        <Icon path={ICONS[menu.icon]} />
-                        <span>{menu.name}</span>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {menus.filter(menu => menu.roles.includes(userRole)).map(menu => (
+                        <div
+                            key={menu.name}
+                            className={`menu-item ${activeMenu === menu.name ? 'active' : ''}`}
+                            onClick={() => handleMenuClick(menu.name)}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={menu.name}
+                        >
+                            <Icon path={ICONS[menu.icon]} />
+                            <span>{menu.name}</span>
+                        </div>
+                    ))}
+                </div>
+                {userRole === 'admin' && (
+                    <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+                        <a 
+                            href="https://docs.google.com/spreadsheets/d/1lNAin1_AIpqt-GrMXO6vPf85N13ClDF7akHAHckTFDw/edit?gid=0#gid=0" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="menu-item"
+                            style={{ textDecoration: 'none', color: 'var(--text-secondary)', padding: '0.5rem' }}
+                        >
+                            <Icon path="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                            <span>Google Sheets</span>
+                        </a>
+                        <a 
+                            href="https://script.google.com/macros/s/AKfycbxQ-PTvW5vLirBLPv5RJ_ZX0EGuDgvzkHEU8ssSBQCuecqzp0xas7g4qzwsEIxBY3lc/exec" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="menu-item"
+                            style={{ textDecoration: 'none', color: 'var(--text-secondary)', padding: '0.5rem' }}
+                        >
+                            <Icon path="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z" />
+                            <span>Google Script</span>
+                        </a>
                     </div>
-                ))}
+                )}
             </nav>
         </>
     );
@@ -2469,10 +2495,33 @@ const App = () => {
                     // Ensure payoutStatus is set for saving
                     if (!item.payoutStatus) item.payoutStatus = 'Pending';
                     if (!item.payoutRejectionReason) item.payoutRejectionReason = '';
+                    
+                    // Map to Column N format as well to support generic headers
+                    item['Column 1'] = item.dateOfApplication;
+                    item['Column 2'] = item.name || '';
+                    item['Column 3'] = item.jobOrderNo || '';
+                    item['Column 4'] = item.accountNumber || '';
+                    item['Column 5'] = item.plan || '';
+                    item['Column 6'] = item.activationDate;
+                    item['Column 7'] = item.agent || '';
+                    item['Column 8'] = item.encoder || '';
+                    item['Column 9'] = item.status || 'Pending';
+                    item['Column 10'] = item.reason || '';
+                    item['Column 11'] = item.payoutStatus;
+                    item['Column 12'] = item.payoutRejectionReason;
+                    item['Column 13'] = item.subsPaymentStatus || 'PENDING';
+                    item['Column 14'] = item.id || '';
+                    item['Column 15'] = item.address || '';
+                    item['Column 16'] = item.link || '';
                 });
             } else if (sheetName === 'Expenses') {
                 dataForSheet.forEach(item => {
                     item.date = formatDateForSheet(item.date);
+                    item['Column 1'] = item.date;
+                    item['Column 2'] = item.category || 'Others';
+                    item['Column 3'] = item.description || '';
+                    item['Column 4'] = item.amount || 0;
+                    item['Column 5'] = item.id || '';
                 });
             }
 
@@ -2562,31 +2611,32 @@ const App = () => {
                 
                 const processedSubscribers = (data.subscribers || []).map((item, index) => ({
                     ...item,
-                    id: item.id || `sheet-row-${index + 2}`,
-                    dateOfApplication: normalizeDateToYYYYMMDD(item.dateOfApplication),
-                    name: item.name || '',
-                    address: item.address || '',
-                    jobOrderNo: item.jobOrderNo || '',
-                    accountNumber: item.accountNumber || '',
-                    link: item.link || '',
-                    plan: String(item.plan || ''), // Ensure plan is string
-                    activationDate: normalizeDateToYYYYMMDD(item.activationDate),
-                    agent: item.agent || '',
-                    encoder: item.encoder || '',
-                    status: item.status || 'Pending',
-                    reason: item.reason || '',
-                    payoutStatus: item.payoutStatus || 'Pending',
-                    payoutRejectionReason: item.payoutRejectionReason || ''
+                    id: item.id || item['Column 14'] || `sheet-row-${index + 2}`,
+                    dateOfApplication: normalizeDateToYYYYMMDD(item.dateOfApplication || item['Column 1']),
+                    name: item.name || item['Column 2'] || '',
+                    address: item.address || item['Column 15'] || '',
+                    jobOrderNo: item.jobOrderNo || item['Column 3'] || '',
+                    accountNumber: item.accountNumber || item['Column 4'] || '',
+                    link: item.link || item['Column 16'] || '',
+                    plan: String(item.plan || item['Column 5'] || ''), // Ensure plan is string
+                    activationDate: normalizeDateToYYYYMMDD(item.activationDate || item['Column 6']),
+                    agent: item.agent || item['Column 7'] || '',
+                    encoder: item.encoder || item['Column 8'] || '',
+                    status: item.status || item['Column 9'] || 'Pending',
+                    reason: item.reason || item['Column 10'] || '',
+                    payoutStatus: item.payoutStatus || item['Column 11'] || 'Pending',
+                    payoutRejectionReason: item.payoutRejectionReason || item['Column 12'] || '',
+                    subsPaymentStatus: item.subsPaymentStatus || item['Column 13'] || 'PENDING'
                 }));
                 setSubscribers(processedSubscribers);
 
                 const processedExpenses = (data.expenses || []).map((item, index) => ({
                     ...item,
-                    id: item.id || `exp-row-${index + 2}`,
-                    date: normalizeDateToYYYYMMDD(item.date),
-                    category: item.category || 'Others',
-                    description: item.description || '',
-                    amount: parseFloat(item.amount) || 0
+                    id: item.id || item['Column 5'] || `exp-row-${index + 2}`,
+                    date: normalizeDateToYYYYMMDD(item.date || item['Column 1']),
+                    category: item.category || item['Column 2'] || 'Others',
+                    description: item.description || item['Column 3'] || '',
+                    amount: parseFloat(item.amount || item['Column 4']) || 0
                 }));
                 setExpenses(processedExpenses);
 
