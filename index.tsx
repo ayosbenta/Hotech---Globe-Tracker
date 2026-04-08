@@ -1620,6 +1620,13 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                     Commission
                 </button>
                 <button 
+                    className={`tab-btn ${activeTab === 'Encoder' ? 'active' : ''}`} 
+                    onClick={() => setActiveTab('Encoder')}
+                    style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'Encoder' ? '2px solid var(--primary-brand)' : 'none', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontWeight: activeTab === 'Encoder' ? 'bold' : 'normal', color: activeTab === 'Encoder' ? 'var(--primary-brand)' : 'var(--text-secondary)' }}
+                >
+                    Encoder
+                </button>
+                <button 
                     className={`tab-btn ${activeTab === 'Subs Payment' ? 'active' : ''}`} 
                     onClick={() => setActiveTab('Subs Payment')}
                     style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'Subs Payment' ? '2px solid var(--primary-brand)' : 'none', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontWeight: activeTab === 'Subs Payment' ? 'bold' : 'normal', color: activeTab === 'Subs Payment' ? 'var(--primary-brand)' : 'var(--text-secondary)' }}
@@ -1690,13 +1697,20 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 <th>Job Order No.</th>
                                 <th>Plan</th>
                                 <th>Activation Date</th>
-                                {activeTab === 'Commission' ? (
+                                {activeTab === 'Commission' && (
                                     <>
                                         <th>Commission</th>
                                         <th>Payout Status</th>
                                         <th>Rejection Reason</th>
                                     </>
-                                ) : (
+                                )}
+                                {activeTab === 'Encoder' && (
+                                    <>
+                                        <th>Encoder Name</th>
+                                        <th>Encoder Payout Status</th>
+                                    </>
+                                )}
+                                {activeTab === 'Subs Payment' && (
                                     <>
                                         <th>Subs Payment Status</th>
                                     </>
@@ -1711,7 +1725,7 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                     <td>{item.jobOrderNo}</td>
                                     <td>{item.plan}</td>
                                     <td>{formatDate(item.activationDate)}</td>
-                                    {activeTab === 'Commission' ? (
+                                    {activeTab === 'Commission' && (
                                         <>
                                             <td>₱{item.commission.toLocaleString()}</td>
                                             <td>
@@ -1735,7 +1749,39 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                             </td>
                                             <td>{item.payoutRejectionReason}</td>
                                         </>
-                                    ) : (
+                                    )}
+                                    {activeTab === 'Encoder' && (
+                                        <>
+                                            <td>{item.encoder}</td>
+                                            <td>
+                                                {currentUser.role === 'admin' ? (
+                                                    <select
+                                                        className="form-control table-select"
+                                                        value={item.encoderPayoutStatus || 'Pending'}
+                                                        onChange={(e) => {
+                                                            const updatedSubscriber = {
+                                                                ...item,
+                                                                encoderPayoutStatus: e.target.value,
+                                                            };
+                                                            onSaveSubscriber(updatedSubscriber);
+                                                        }}
+                                                        disabled={item.status !== 'Installed'}
+                                                        aria-label={`Encoder payout status for ${item.name}`}
+                                                    >
+                                                        <option value="Pending">Pending</option>
+                                                        <option value="On Request">On Request</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                    </select>
+                                                ) : (
+                                                    <span className="status-badge" style={payoutStatusBadgeStyle(item.encoderPayoutStatus || 'Pending')}>
+                                                        {item.encoderPayoutStatus || 'Pending'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </>
+                                    )}
+                                    {activeTab === 'Subs Payment' && (
                                         <>
                                             <td>
                                                 {currentUser.role === 'admin' ? (
@@ -1762,7 +1808,7 @@ const PayoutReports = ({ subscribers, agents, currentUser, onSaveSubscriber }) =
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={activeTab === 'Commission' ? 8 : 6} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
+                                    <td colSpan={activeTab === 'Commission' ? 8 : (activeTab === 'Encoder' ? 7 : 6)} style={{textAlign: 'center', padding: '1rem'}}>No data available for the selected period.</td>
                                 </tr>
                             )}
                         </tbody>
